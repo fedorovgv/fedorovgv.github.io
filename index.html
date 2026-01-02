@@ -1,4 +1,3 @@
-```html
 <!doctype html>
 <html lang="en">
 <head>
@@ -8,78 +7,42 @@
   <style>
     :root { color-scheme: light; }
     * { box-sizing: border-box; }
-
-    /* 1) Full-bleed pure white, no outer padding/margins */
     html, body { height: 100%; margin: 0; background: #fff; color: #000; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial; }
 
-    .wrap{
-      height: 100%;
-      width: 100%;
-      display: grid;
-      grid-template-rows: auto 1fr;
-      /* no padding / no gaps => “no additional spaces” */
-    }
-
+    /* Full-bleed layout (no extra whitespace) */
+    .wrap { height: 100%; width: 100%; display: grid; grid-template-rows: auto 1fr; }
     header{
-      display: flex;
-      align-items: baseline;
-      justify-content: space-between;
+      display:flex; align-items:baseline; justify-content:space-between;
       padding: 10px 12px;
       border-bottom: 1px solid rgba(0,0,0,0.10);
     }
+    .name{ margin:0; font-size:16px; font-weight:650; letter-spacing:-0.2px; }
+    .desc{ margin:2px 0 0; font-size:12px; color:rgba(0,0,0,0.60); }
+    .meta{ font-size:12px; color:rgba(0,0,0,0.45); white-space:nowrap; }
 
-    .name{ margin: 0; font-size: 16px; font-weight: 650; letter-spacing: -0.2px; }
-    .desc{ margin: 2px 0 0; font-size: 12px; color: rgba(0,0,0,0.60); }
-    .meta{ font-size: 12px; color: rgba(0,0,0,0.45); white-space: nowrap; }
+    main{ position:relative; width:100%; height:100%; }
 
-    main{
-      position: relative;
-      width: 100%;
-      height: 100%;
-    }
-
-    /* Minimal write field, centered but with no “card” spacing/decoration */
-    .note{
-      position: absolute;
-      inset: 0; /* fill entire remaining area */
-      display: grid;
-      grid-template-rows: auto 1fr auto;
-    }
-
+    /* Minimal write field filling the whole remaining area */
+    .note{ position:absolute; inset:0; display:grid; grid-template-rows:auto 1fr auto; }
     .note label{
-      padding: 10px 12px;
-      font-size: 12px;
-      color: rgba(0,0,0,0.55);
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      border-bottom: 1px solid rgba(0,0,0,0.08);
+      padding:10px 12px;
+      font-size:12px; color:rgba(0,0,0,0.55);
+      display:flex; justify-content:space-between; align-items:center;
+      border-bottom:1px solid rgba(0,0,0,0.08);
     }
-
     textarea{
-      width: 100%;
-      height: 100%;
-      border: 0;
-      outline: none;
-      resize: none;
-      padding: 14px 12px;
-      font-size: 15px;
-      line-height: 1.5;
-      background: #fff;
-      color: #000;
+      width:100%; height:100%;
+      border:0; outline:none; resize:none;
+      padding:14px 12px;
+      font-size:15px; line-height:1.5;
+      background:#fff; color:#000;
     }
-
     .hint{
-      padding: 10px 12px;
-      font-size: 12px;
-      color: rgba(0,0,0,0.45);
-      border-top: 1px solid rgba(0,0,0,0.08);
-      display: flex;
-      justify-content: space-between;
-      gap: 10px;
-      flex-wrap: wrap;
+      padding:10px 12px;
+      font-size:12px; color:rgba(0,0,0,0.45);
+      border-top:1px solid rgba(0,0,0,0.08);
+      display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap;
     }
-
     .kbd{
       font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
       font-size: 11px;
@@ -89,75 +52,42 @@
       border-radius: 8px;
     }
 
-    /* 2) Pixel sprite runner */
+    /* Pixel sprite runner */
     .runner{
-      position: absolute;
-      left: 0; top: 0;
-      width: 64px; height: 64px;
-      transform: translate(-200px, -200px);
-      pointer-events: none;
+      position:absolute;
+      left:0; top:0;
+      width:64px; height:64px;
+      transform: translate(-200px,-200px);
+      pointer-events:none;
       will-change: transform;
+      /* a tiny soft shadow but still minimal */
+      filter: drop-shadow(0 10px 10px rgba(0,0,0,0.10));
     }
-
-    /* Pixel look: nearest-neighbor scaling */
     .runner canvas{
-      width: 64px; height: 64px;
+      width:64px; height:64px;
       image-rendering: pixelated;
       image-rendering: crisp-edges;
-      display: block;
+      display:block;
     }
-
-    /* Small “tag” popup */
-    .bubble{
-      position: absolute;
-      left: 62px; top: 2px;
-      padding: 4px 6px;
-      border-radius: 10px;
-      font-size: 12px;
-      background: #fff;
-      border: 1px solid rgba(0,0,0,0.12);
-      color: rgba(0,0,0,0.65);
-      transform: translateY(-6px);
-      opacity: 0;
-      transition: opacity .18s ease, transform .18s ease;
-      white-space: nowrap;
-    }
-    .bubble.on{ opacity: 1; transform: translateY(0); }
 
     @media (prefers-reduced-motion: reduce){
       .runner{ display:none; }
     }
   </style>
 </head>
-
 <body>
-  <div class="wrap" id="stage">
+  <div class="wrap">
     <header>
       <div>
-        <h1 class="name">Alex — Portfolio</h1>
-        <p class="desc">ML / DL engineer • Speech & neural networks</p>
+        <h1 class="name"></h1>
+        <p class="desc">DL engineer</p>
       </div>
       <div class="meta">github.io</div>
     </header>
 
     <main>
-      <section class="note">
-        <label>
-          <span>Write</span>
-          <span class="kbd">Ctrl/⌘ + K</span>
-        </label>
-
-        <textarea id="note" placeholder="Type here…"></textarea>
-
-        <div class="hint">
-          <span>Move cursor — pixel dude tries to catch it.</span>
-          <span><span class="kbd">Q</span> speed • <span class="kbd">Space</span> pause</span>
-        </div>
-      </section>
-
       <div class="runner" id="runner" aria-hidden="true">
         <canvas id="sprite" width="16" height="16"></canvas>
-        <div class="bubble" id="bubble">tag!</div>
       </div>
     </main>
   </div>
@@ -166,11 +96,10 @@
 (() => {
   const note = document.getElementById("note");
   const runner = document.getElementById("runner");
-  const bubble = document.getElementById("bubble");
   const c = document.getElementById("sprite");
   const ctx = c.getContext("2d", { alpha: true });
 
-  // Shortcut focus
+  // Focus shortcut
   window.addEventListener("keydown", (e) => {
     if (e.key.toLowerCase() === "k" && (e.ctrlKey || e.metaKey)) {
       e.preventDefault();
@@ -181,10 +110,9 @@
   const prefersReducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
   if (prefersReducedMotion) return;
 
-  // Target (cursor)
+  // Cursor target
   let target = { x: window.innerWidth * 0.65, y: window.innerHeight * 0.55 };
   let hasPointer = false;
-
   function setTarget(e){
     hasPointer = true;
     target.x = e.clientX;
@@ -193,137 +121,114 @@
   window.addEventListener("pointermove", setTarget, { passive: true });
   window.addEventListener("pointerdown", setTarget, { passive: true });
 
-  // Runner physics
+  // Physics state
   const pos = { x: window.innerWidth * 0.18, y: window.innerHeight * 0.6 };
   const vel = { x: 0, y: 0 };
-
   let paused = false;
   let fast = false;
 
   const cfg = {
-    accel: 0.018,
-    maxSpeed: 1.35,    // px/ms
-    friction: 0.86,
-    catchRadius: 16,
-    overshoot: 10
+    accel: 0.020,
+    maxSpeed: 1.45,     // px/ms
+    friction: 0.865,
+    catchRadius: 14,
+    // 2) Stop briefly when “caught”
+    stopMs: 180
   };
 
   function clamp(v,a,b){ return Math.max(a, Math.min(b, v)); }
 
-  // 3) Prevent turning over: we NEVER rotate the sprite.
-  // We only mirror left/right (scaleX) and keep head "up".
+  // 3) No popup / no UI on catch — we only stop briefly.
+  let stopUntil = 0;
+
+  // 1) Minimal pixel sprite, inspired by reference: simple head/body/arms/legs, NO FACE.
+  // We draw a very simple silhouette with subtle outline.
+  const COLORS = {
+    fill: "#FFD400",
+    shade: "#F2C200",
+    outline: "rgba(0,0,0,0.10)"
+  };
+
+  function px(x,y,color){ ctx.fillStyle = color; ctx.fillRect(x,y,1,1); }
+  function clear(){ ctx.clearRect(0,0,16,16); }
+
+  // facing: only mirror left/right; head always up
   let facing = 1; // 1 right, -1 left
 
-  // --- 2) Pixel sprite drawing (16x16) ---
-  // Two-frame run cycle + idle. We'll draw into 16x16 and scale up via CSS.
-  function px(x,y,color){
-    ctx.fillStyle = color;
-    ctx.fillRect(x, y, 1, 1);
-  }
+  // A tiny run cycle: legs/arms swap
+  const anim = { t: 0, frame: 0, acc: 0 };
 
-  function clear(){
-    ctx.clearRect(0,0,16,16);
-  }
-
-  function drawSprite(frame, speed01){
+  function drawDude(frame, speed01){
     clear();
 
-    // Palette
-    const Y = "#FFD400";           // body
-    const Y2 = "#F2C200";          // shadow
-    const O = "rgba(0,0,0,0.12)";  // outline-ish
-    const D = "rgba(0,0,0,0.35)";  // darker detail
+    // small bob
+    const bob = Math.round(Math.sin(anim.t*0.8) * 0.6 * speed01);
 
-    // Slight bob based on speed
-    const bob = Math.round((Math.sin(frame.t * 0.9) * 0.6) * speed01);
-
-    // Pixel “person” base origin
-    const ox = 5;
+    const ox = 6;
     const oy = 2 + bob;
 
-    // Head (always up)
-    // outline ring
-    for (let yy=0; yy<4; yy++){
-      for (let xx=0; xx<4; xx++){
-        const edge = (xx===0||xx===3||yy===0||yy===3);
-        px(ox+xx, oy+yy, edge ? O : Y);
-      }
-    }
-    // Eye
-    px(ox+2, oy+2, D);
+    const F = COLORS.fill, S = COLORS.shade, O = COLORS.outline;
 
-    // Body (torso)
+    // HEAD (3x3) - rounded-ish by corners transparent
+    //  .XX.
+    //  XXXX (but in 3x3 we do a compact circle)
+    px(ox+1, oy+0, O); px(ox+2, oy+0, O);
+    px(ox+0, oy+1, O); px(ox+1, oy+1, F); px(ox+2, oy+1, F); px(ox+3, oy+1, O);
+    px(ox+0, oy+2, O); px(ox+1, oy+2, F); px(ox+2, oy+2, F); px(ox+3, oy+2, O);
+    px(ox+1, oy+3, O); px(ox+2, oy+3, O);
+
+    // NECK pixel
+    px(ox+1, oy+4, F); px(ox+2, oy+4, F);
+
+    // BODY (simple oval-ish 4x5)
     for (let yy=0; yy<5; yy++){
       for (let xx=0; xx<4; xx++){
         const edge = (xx===0||xx===3||yy===0||yy===4);
-        px(ox+xx, oy+4+yy, edge ? O : Y);
+        px(ox+xx, oy+5+yy, edge ? O : F);
       }
     }
-    // Belt/shadow line
-    px(ox+1, oy+7, Y2); px(ox+2, oy+7, Y2);
+    // slight shading on lower body
+    px(ox+1, oy+8, S); px(ox+2, oy+8, S);
 
-    // Arms (swing)
-    const armUp = (frame.i % 2 === 0);
-    if (armUp) {
-      px(ox-1, oy+6, O); px(ox-2, oy+5, Y);
-      px(ox+4, oy+6, O); px(ox+5, oy+5, Y);
+    // ARMS (very minimal sticks)
+    const swing = (frame % 2 === 0);
+    if (swing){
+      // left arm up, right down
+      px(ox-1, oy+6, O); px(ox-2, oy+5, F);
+      px(ox+4, oy+8, O); px(ox+5, oy+9, F);
     } else {
-      px(ox-1, oy+7, O); px(ox-2, oy+8, Y);
-      px(ox+4, oy+7, O); px(ox+5, oy+8, Y);
+      // left down, right up
+      px(ox-1, oy+8, O); px(ox-2, oy+9, F);
+      px(ox+4, oy+6, O); px(ox+5, oy+5, F);
     }
 
-    // Legs (run cycle)
-    // Frame 0: left forward, right back
-    // Frame 1: right forward, left back
-    const leftForward = (frame.i % 2 === 0);
+    // LEGS (simple, swap forward/back)
+    const leftForward = (frame % 2 === 0);
+    const hipY = oy + 10;
 
-    // hip anchors
-    const hxL = ox+1, hxR = ox+2, hy = oy+9;
-
-    function leg(x, y, forward){
-      // upper
-      px(x, y, O);
-      px(x, y+1, Y);
-      // lower
+    function leg(x, forward){
+      px(x, hipY, O);
+      px(x, hipY+1, F);
       if (forward){
-        px(x+1, y+2, Y);
-        px(x+2, y+3, O);
-        px(x+3, y+3, Y);
+        px(x+1, hipY+2, F);
+        px(x+2, hipY+3, O);
+        px(x+3, hipY+3, F);
+        px(x+3, hipY+4, O); px(x+4, hipY+4, F); // foot
       } else {
-        px(x-1, y+2, Y2);
-        px(x-2, y+3, O);
-        px(x-3, y+3, Y2);
-      }
-      // foot
-      if (forward) {
-        px(x+3, y+4, O); px(x+4, y+4, Y);
-      } else {
-        px(x-3, y+4, O); px(x-4, y+4, Y2);
+        px(x-1, hipY+2, S);
+        px(x-2, hipY+3, O);
+        px(x-3, hipY+3, S);
+        px(x-3, hipY+4, O); px(x-4, hipY+4, S); // foot
       }
     }
 
-    leg(hxL, hy, leftForward);
-    leg(hxR, hy, !leftForward);
-
-    // Small “dust” pixel when moving
-    if (speed01 > 0.35) {
-      const dx = leftForward ? 2 : 1;
-      px(ox-4, oy+13, "rgba(0,0,0,0.06)");
-      px(ox-5, oy+14, "rgba(0,0,0,0.05)");
-      px(ox-3, oy+14, "rgba(0,0,0,0.04)");
-      px(ox-2, oy+13, "rgba(0,0,0,0.04)");
-    }
+    leg(ox+1, leftForward);
+    leg(ox+2, !leftForward);
   }
 
-  // Animation state for sprite
-  const spriteState = { t: 0, i: 0, accum: 0 };
-
-  let last = performance.now();
-  let lastCatch = 0;
-
   function step(now){
-    const dt = clamp(now - last, 8, 28);
-    last = now;
+    const dt = clamp(now - (step._last || now), 8, 28);
+    step._last = now;
 
     if (!hasPointer) {
       const r = note.getBoundingClientRect();
@@ -331,14 +236,20 @@
       target.y = r.top + r.height * 0.35;
     }
 
-    const speedMul = fast ? 1.9 : 1.0;
+    // Controls
+    // Space: pause. Q: speed toggle.
+    // (Already requested before; keeping)
+    const speedMul = fast ? 1.85 : 1.0;
 
-    if (!paused) {
+    // If “stopped due to catch”, just render idle in place
+    const stopped = now < stopUntil;
+
+    if (!paused && !stopped) {
       const dx = target.x - pos.x;
       const dy = target.y - pos.y;
       const dist = Math.hypot(dx, dy) || 1;
 
-      // Set facing by x only (no rotation)
+      // facing by x only (no rotation)
       if (Math.abs(dx) > 2) facing = dx >= 0 ? 1 : -1;
 
       const ax = (dx / dist) * cfg.accel * dt * speedMul;
@@ -357,55 +268,42 @@
       pos.x += vel.x;
       pos.y += vel.y;
 
-      // Keep on screen
+      // keep on screen
       pos.x = clamp(pos.x, 8, window.innerWidth - 8);
       pos.y = clamp(pos.y, 8, window.innerHeight - 8);
 
-      // Catch
-      if (dist < cfg.catchRadius && (now - lastCatch) > 450) {
-        lastCatch = now;
-        bubble.classList.add("on");
-        setTimeout(() => bubble.classList.remove("on"), 380);
-
-        // slight overshoot/back-off so it “tags” then continues
-        pos.x -= (dx / dist) * cfg.overshoot;
-        pos.y -= (dy / dist) * cfg.overshoot;
+      // Catch: 2) STOP briefly when reaches cursor.
+      if (dist < cfg.catchRadius) {
+        stopUntil = now + cfg.stopMs;
+        vel.x = 0; vel.y = 0; // hard stop
       }
 
-      // Sprite timing based on speed
+      // Sprite animation tied to speed
       const speed01 = clamp(sp / (maxV + 1e-6), 0, 1);
-      spriteState.t += dt * 0.01 * (0.6 + speed01 * 2.2);
-      spriteState.accum += dt * (0.002 + speed01 * 0.010);
-      if (spriteState.accum > 1) {
-        spriteState.i = (spriteState.i + 1) % 2;
-        spriteState.accum = 0;
-      }
+      anim.t += dt * 0.01 * (0.6 + speed01 * 2.0);
+      anim.acc += dt * (0.002 + speed01 * 0.010);
+      if (anim.acc > 1) { anim.frame = (anim.frame + 1) % 2; anim.acc = 0; }
 
-      drawSprite(spriteState, speed01);
-
-      // Render: translate + mirror only (NO rotation), head always up
-      runner.style.transform = `translate(${pos.x}px, ${pos.y}px) scaleX(${facing})`;
+      drawDude(anim.frame, speed01);
     } else {
-      // paused: still draw idle
-      drawSprite({ t: spriteState.t, i: 0 }, 0);
-      runner.style.transform = `translate(${pos.x}px, ${pos.y}px) scaleX(${facing})`;
+      // paused or stopped: idle frame
+      drawDude(0, 0);
     }
+
+    runner.style.transform = `translate(${pos.x}px, ${pos.y}px) scaleX(${facing})`;
 
     requestAnimationFrame(step);
   }
 
-  // Controls
   window.addEventListener("keydown", (e) => {
     if (e.key === " ") { e.preventDefault(); paused = !paused; }
     if (e.key.toLowerCase() === "q") fast = !fast;
   });
 
-  // First render
-  drawSprite({ t: 0, i: 0 }, 0);
+  // Initial draw
+  drawDude(0, 0);
   requestAnimationFrame(step);
 })();
 </script>
 </body>
 </html>
-```
-
