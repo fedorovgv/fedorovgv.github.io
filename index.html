@@ -1,3 +1,4 @@
+
 <!doctype html>
 <html lang="ru">
 <head>
@@ -5,150 +6,90 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>DL engineer</title>
   <style>
-    * { box-sizing: border-box; }
-    html, body { height: 100%; margin: 0; background: #fff; overflow: hidden; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; }
+    *{ box-sizing:border-box; }
+    html,body{ height:100%; margin:0; background:#fff; overflow:hidden; font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial; }
 
     header{
-      position: fixed; left: 0; right: 0; top: 0;
-      height: 44px; display: flex; align-items: center;
-      padding: 0 14px; font-size: 14px; font-weight: 650;
-      border-bottom: 1px solid rgba(0,0,0,0.10);
-      background: #fff; user-select: none; z-index: 10;
+      position:fixed; left:0; right:0; top:0;
+      height:44px; display:flex; align-items:center;
+      padding:0 14px; font-size:14px; font-weight:650;
+      border-bottom:1px solid rgba(0,0,0,0.10);
+      background:#fff; user-select:none; z-index:10;
     }
 
-    /* SMALL + THIN */
     .runner{
-      position: fixed;
-      left: 0; top: 0;
-      width: 44px; height: 44px;         /* <-- much smaller */
-      transform: translate(-50%, -50%);
-      pointer-events: none;
-      z-index: 1000;
-      filter: drop-shadow(0 8px 10px rgba(0,0,0,0.10));
-      will-change: left, top;
+      position:fixed;
+      left:0; top:0;
+      width:52px; height:52px;       /* small but readable */
+      transform:translate(-50%,-50%);
+      pointer-events:none;
+      z-index:1000;
+      filter:drop-shadow(0 10px 12px rgba(0,0,0,0.10));
+      will-change:left,top;
     }
-    .man{ width: 44px; height: 44px; transform-origin: 50% 50%; will-change: transform, opacity; }
-    .man svg{ width: 44px; height: 44px; display:block; }
+
+    .man{ width:52px; height:52px; transform-origin:50% 50%; will-change:transform,opacity; }
+    .man svg{ width:52px; height:52px; display:block; }
 
     .runner.dying .man{
-      opacity: 0;
-      transform: scaleX(var(--face, 1)) scale(0.92);
-      transition: opacity 140ms ease, transform 180ms ease;
+      opacity:0;
+      transform:scaleX(var(--face,1)) scale(0.92);
+      transition:opacity 140ms ease, transform 180ms ease;
     }
 
     .bubble{
       position:absolute;
-      left: 52px;
-      top: -2px;
-      max-width: 280px;
-      padding: 8px 10px;
-      border-radius: 14px;
-      background: #fff;
-      border: 1px solid rgba(0,0,0,0.14);
-      color: rgba(0,0,0,0.80);
-      font-size: 12px;
-      line-height: 1.25;
-      box-shadow: 0 12px 30px rgba(0,0,0,0.10);
-      opacity: 0;
-      transform: translateY(-6px);
-      transition: opacity .16s ease, transform .16s ease;
-      white-space: normal;
+      left:60px;
+      top:-4px;
+      max-width:320px;
+      padding:8px 10px;
+      border-radius:14px;
+      background:#fff;
+      border:1px solid rgba(0,0,0,0.14);
+      color:rgba(0,0,0,0.80);
+      font-size:12px;
+      line-height:1.25;
+      box-shadow:0 12px 30px rgba(0,0,0,0.10);
+      opacity:0;
+      transform:translateY(-6px);
+      transition:opacity .16s ease, transform .16s ease;
+      white-space:normal;
     }
-    .bubble.on{ opacity: 1; transform: translateY(0); }
+    .bubble.on{ opacity:1; transform:translateY(0); }
     .bubble:after{
       content:"";
       position:absolute;
-      left: -6px; top: 18px;
-      width: 10px; height: 10px;
-      background: #fff;
-      border-left: 1px solid rgba(0,0,0,0.14);
-      border-bottom: 1px solid rgba(0,0,0,0.14);
-      transform: rotate(45deg);
+      left:-6px; top:18px;
+      width:10px; height:10px;
+      background:#fff;
+      border-left:1px solid rgba(0,0,0,0.14);
+      border-bottom:1px solid rgba(0,0,0,0.14);
+      transform:rotate(45deg);
     }
 
-    /* SOUL */
     .soul{
-      position: fixed;
-      left: 0; top: 0;
-      width: 56px; height: 56px;
-      transform: translate(-50%, -50%);
-      pointer-events: none;
-      z-index: 1500;
-      opacity: 0;
+      position:fixed;
+      left:0; top:0;
+      width:62px; height:62px;
+      transform:translate(-50%,-50%);
+      pointer-events:none;
+      z-index:1500;
+      opacity:0;
       filter:
-        drop-shadow(0 10px 16px rgba(0,0,0,0.12))
-        drop-shadow(0 0 12px rgba(255,255,255,0.98));
-      will-change: left, top, opacity;
+        drop-shadow(0 12px 22px rgba(0,0,0,0.12))
+        drop-shadow(0 0 14px rgba(255,255,255,0.98));
+      will-change:left,top,opacity;
     }
-    .soul svg{ width: 56px; height: 56px; display:block; }
-    .soul.on{ opacity: 1; transition: opacity 180ms ease; }
+    .soul svg{ width:62px; height:62px; display:block; }
+    .soul.on{ opacity:1; transition:opacity 180ms ease; }
 
-    /* Explosion (kept) */
-    .boom{
-      position: fixed;
-      left: 0; top: 0;
-      width: 10px; height: 10px;
-      transform: translate(-50%, -50%);
-      pointer-events: none;
-      z-index: 2000;
-      mix-blend-mode: multiply;
-      filter: saturate(1.25);
-    }
-    .boom .shock{
-      position:absolute; left:50%; top:50%;
-      width: 20px; height: 20px;
-      border-radius: 999px;
-      border: 2px solid rgba(255, 70, 0, 0.38);
-      transform: translate(-50%, -50%) scale(0.12);
-      opacity: 0.95;
-      animation: shock 620ms cubic-bezier(.1,.8,.2,1) forwards;
-    }
-    .boom .flash{
-      position:absolute; left:50%; top:50%;
-      width: 26px; height: 26px;
-      border-radius: 999px;
-      transform: translate(-50%, -50%) scale(0.12);
-      background: radial-gradient(circle at 35% 35%,
-        rgba(255,255,255,0.95) 0%,
-        rgba(255,220,120,0.95) 22%,
-        rgba(255,120,0,0.85) 48%,
-        rgba(255,40,0,0.55) 72%,
-        rgba(255,40,0,0.0) 100%);
-      animation: flash 520ms ease-out forwards;
-      opacity: 1;
-      filter: blur(0.2px);
-    }
-    .boom .puff{
-      position:absolute; left:50%; top:50%;
-      width: var(--s);
-      height: var(--s);
-      border-radius: 999px;
-      transform: translate(-50%, -50%) scale(0.12);
-      opacity: 0.9;
-      background: radial-gradient(circle at 35% 35%,
-        rgba(255,255,255,0.85) 0%,
-        rgba(255,230,140,0.85) 22%,
-        rgba(255,140,0,0.78) 50%,
-        rgba(255,55,0,0.45) 78%,
-        rgba(255,55,0,0.00) 100%);
-      filter: blur(0.4px);
-      animation: puff 760ms cubic-bezier(.12,.8,.18,1) forwards;
-    }
-    .boom .smoke{
-      position:absolute; left:50%; top:50%;
-      width: var(--s);
-      height: var(--s);
-      border-radius: 999px;
-      transform: translate(-50%, -50%) scale(0.12);
-      opacity: 0.45;
-      background: radial-gradient(circle at 40% 40%,
-        rgba(60,60,60,0.35) 0%,
-        rgba(60,60,60,0.22) 45%,
-        rgba(60,60,60,0.00) 100%);
-      filter: blur(0.9px);
-      animation: smoke 980ms cubic-bezier(.12,.8,.18,1) forwards;
-      mix-blend-mode: normal;
-    }
+    /* explosion visuals (same as before) */
+    .boom{ position:fixed; left:0; top:0; width:10px; height:10px; transform:translate(-50%,-50%); pointer-events:none; z-index:2000; mix-blend-mode:multiply; filter:saturate(1.25); }
+    .boom .shock{ position:absolute; left:50%; top:50%; width:20px; height:20px; border-radius:999px; border:2px solid rgba(255,70,0,0.38); transform:translate(-50%,-50%) scale(0.12); opacity:0.95; animation:shock 620ms cubic-bezier(.1,.8,.2,1) forwards; }
+    .boom .flash{ position:absolute; left:50%; top:50%; width:26px; height:26px; border-radius:999px; transform:translate(-50%,-50%) scale(0.12); background:radial-gradient(circle at 35% 35%, rgba(255,255,255,0.95) 0%, rgba(255,220,120,0.95) 22%, rgba(255,120,0,0.85) 48%, rgba(255,40,0,0.55) 72%, rgba(255,40,0,0.0) 100%); animation:flash 520ms ease-out forwards; opacity:1; filter:blur(0.2px); }
+    .boom .puff{ position:absolute; left:50%; top:50%; width:var(--s); height:var(--s); border-radius:999px; transform:translate(-50%,-50%) scale(0.12); opacity:0.9; background:radial-gradient(circle at 35% 35%, rgba(255,255,255,0.85) 0%, rgba(255,230,140,0.85) 22%, rgba(255,140,0,0.78) 50%, rgba(255,55,0,0.45) 78%, rgba(255,55,0,0.00) 100%); filter:blur(0.4px); animation:puff 760ms cubic-bezier(.12,.8,.18,1) forwards; }
+    .boom .smoke{ position:absolute; left:50%; top:50%; width:var(--s); height:var(--s); border-radius:999px; transform:translate(-50%,-50%) scale(0.12); opacity:0.45; background:radial-gradient(circle at 40% 40%, rgba(60,60,60,0.35) 0%, rgba(60,60,60,0.22) 45%, rgba(60,60,60,0.00) 100%); filter:blur(0.9px); animation:smoke 980ms cubic-bezier(.12,.8,.18,1) forwards; mix-blend-mode:normal; }
+
     @keyframes flash{ 0%{transform:translate(-50%,-50%) scale(.12);opacity:.95;} 35%{transform:translate(-50%,-50%) scale(1.25);opacity:.75;} 100%{transform:translate(-50%,-50%) scale(2.25);opacity:0;} }
     @keyframes shock{ 0%{transform:translate(-50%,-50%) scale(.12);opacity:.9;} 100%{transform:translate(-50%,-50%) scale(3.2);opacity:0;} }
     @keyframes puff{ 0%{transform:translate(-50%,-50%) scale(.18);opacity:.9;} 55%{opacity:.55;} 100%{transform:translate(calc(-50% + var(--dx)),calc(-50% + var(--dy))) scale(1.65);opacity:0;} }
@@ -183,7 +124,7 @@
     fadeStart: 1600,
   };
 
-  window.addEventListener("contextmenu", (e) => e.preventDefault());
+  addEventListener("contextmenu", (e) => e.preventDefault());
 
   let target = { x: innerWidth * 0.6, y: innerHeight * 0.6 };
   let hasPointer = false;
@@ -192,61 +133,64 @@
 
   const men = [];
 
-  // thinner stickman-like silhouette (your style) + FIXED upper body
+  // "Цельный" человек: сегменты-капсулы + суставы-кружки.
+  // Ноги нормальной длины, бедро+голень, колено сгибается.
   function manSVG({ color, outline }) {
     const fill = color;
-    const outlineStroke = outline ? "rgba(0,0,0,0.30)" : "none";
-    const outlineW = outline ? 2.4 : 0;
+    const out = outline ? "rgba(0,0,0,0.30)" : "none";
+    const outW = outline ? 2.0 : 0;
 
-    // NOTE: viewBox stays 64x64, we scale via CSS (44px) => thin & small.
-    // Only shins/feet are meant to rotate (we animate those in JS).
+    const SW = 7.2; // thinner
+    const JR = 4.2; // joint radius
+    const FR = 3.6; // foot joint
+
     return `
       <svg viewBox="0 0 64 64" aria-hidden="true">
-        <g stroke="${outlineStroke}" stroke-width="${outlineW}" stroke-linecap="round" stroke-linejoin="round">
-          <!-- HEAD -->
-          <circle cx="32" cy="16" r="9.5" fill="${fill}" />
-          <!-- NECK -->
-          <path d="M32 25 L32 27" stroke="${fill}" stroke-width="8" />
+        <g stroke="${out}" stroke-width="${outW}" stroke-linecap="round" stroke-linejoin="round">
+          <!-- head -->
+          <circle cx="32" cy="14.5" r="8.8" fill="${fill}" />
 
-          <!-- TORSO: slim oval -->
-          <ellipse cx="32" cy="38" rx="9" ry="13" fill="${fill}"/>
+          <!-- torso (slim) -->
+          <ellipse cx="32" cy="33" rx="8.6" ry="12.8" fill="${fill}" />
 
-          <!-- ARMS: fixed -->
-          <path d="M25 32 L16 40" stroke="${fill}" stroke-width="8" />
-          <circle cx="25" cy="32" r="4.8" fill="${fill}"/>
-          <circle cx="16" cy="40" r="4.8" fill="${fill}"/>
+          <!-- arms (fixed, small) -->
+          <path d="M25 28.5 L17 34.5" stroke="${fill}" stroke-width="${SW}" />
+          <circle cx="25" cy="28.5" r="${JR}" fill="${fill}" />
+          <circle cx="17" cy="34.5" r="${JR}" fill="${fill}" />
 
-          <path d="M39 32 L48 40" stroke="${fill}" stroke-width="8" />
-          <circle cx="39" cy="32" r="4.8" fill="${fill}"/>
-          <circle cx="48" cy="40" r="4.8" fill="${fill}"/>
+          <path d="M39 28.5 L47 34.5" stroke="${fill}" stroke-width="${SW}" />
+          <circle cx="39" cy="28.5" r="${JR}" fill="${fill}" />
+          <circle cx="47" cy="34.5" r="${JR}" fill="${fill}" />
 
-          <!-- THIGHS: fixed (hips->knees) -->
-          <path d="M30 50 L26 56" stroke="${fill}" stroke-width="8" />
-          <circle cx="30" cy="50" r="4.8" fill="${fill}"/>
-          <circle cx="26" cy="56" r="4.8" fill="${fill}"/>
+          <!-- hips cover -->
+          <circle cx="32" cy="42" r="5.6" fill="${fill}"/>
 
-          <path d="M34 50 L38 56" stroke="${fill}" stroke-width="8" />
-          <circle cx="34" cy="50" r="4.8" fill="${fill}"/>
-          <circle cx="38" cy="56" r="4.8" fill="${fill}"/>
+          <!-- thighs (animated groups) -->
+          <g class="thighL">
+            <path d="M30 42 L26 52" stroke="${fill}" stroke-width="${SW}" />
+            <circle cx="30" cy="42" r="${JR}" fill="${fill}" />
+            <circle cx="26" cy="52" r="${JR}" fill="${fill}" />
 
-          <!-- SHINS: animated ONLY BELOW KNEE -->
-          <g class="shinL">
-            <path d="M26 56 L30 63" stroke="${fill}" stroke-width="8" />
-            <circle cx="26" cy="56" r="4.8" fill="${fill}"/>
-            <circle cx="30" cy="63" r="4.8" fill="${fill}"/>
-            <!-- small foot -->
-            <path d="M28 63 L34 63" stroke="${fill}" stroke-width="7" />
+            <g class="shinL">
+              <path d="M26 52 L30 62" stroke="${fill}" stroke-width="${SW}" />
+              <circle cx="26" cy="52" r="${JR}" fill="${fill}" />
+              <circle cx="30" cy="62" r="${FR}" fill="${fill}" />
+              <path d="M28 62 L35 62" stroke="${fill}" stroke-width="${SW-0.6}" />
+            </g>
           </g>
 
-          <g class="shinR">
-            <path d="M38 56 L34 63" stroke="${fill}" stroke-width="8" />
-            <circle cx="38" cy="56" r="4.8" fill="${fill}"/>
-            <circle cx="34" cy="63" r="4.8" fill="${fill}"/>
-            <path d="M30 63 L36 63" stroke="${fill}" stroke-width="7" />
-          </g>
+          <g class="thighR">
+            <path d="M34 42 L38 52" stroke="${fill}" stroke-width="${SW}" />
+            <circle cx="34" cy="42" r="${JR}" fill="${fill}" />
+            <circle cx="38" cy="52" r="${JR}" fill="${fill}" />
 
-          <!-- hip cover to keep solid -->
-          <circle cx="32" cy="50" r="6.2" fill="${fill}"/>
+            <g class="shinR">
+              <path d="M38 52 L34 62" stroke="${fill}" stroke-width="${SW}" />
+              <circle cx="38" cy="52" r="${JR}" fill="${fill}" />
+              <circle cx="34" cy="62" r="${FR}" fill="${fill}" />
+              <path d="M29 62 L36 62" stroke="${fill}" stroke-width="${SW-0.6}" />
+            </g>
+          </g>
         </g>
       </svg>
     `;
@@ -270,10 +214,11 @@
 
     const svg = man.querySelector("svg");
     const parts = {
-      shinL: svg.querySelector(".shinL"),
-      shinR: svg.querySelector(".shinR"),
+      thighL: svg.querySelector(".thighL"),
+      shinL:  svg.querySelector(".shinL"),
+      thighR: svg.querySelector(".thighR"),
+      shinR:  svg.querySelector(".shinR"),
     };
-
     return { el, man, bubble, parts };
   }
 
@@ -368,33 +313,40 @@
     }, 260);
   }
 
-  // --- Only-below-knee animation ---
-  // Knee pivots in viewBox coordinates:
-  const KNEE_L = [26, 56];
-  const KNEE_R = [38, 56];
+  // --- Leg animation (thigh + shin, with knee bend) ---
+  // Pivots in viewBox coords:
+  const HIP_L  = [30, 42];
+  const KNEE_L = [26, 52];
+  const HIP_R  = [34, 42];
+  const KNEE_R = [38, 52];
 
   function rot(angleDeg, cx, cy){
     return `rotate(${angleDeg.toFixed(2)} ${cx} ${cy})`;
   }
 
   function applyPose(m, speedPerMs, dt){
-    const moving = speedPerMs > 0.10 && dt > 0;
-
-    // phase speed depends on movement
-    const freq = moving ? (7.0 + speedPerMs * 8.0) : 1.4; // rad/sec
+    const moving = speedPerMs > 0.08 && dt > 0;
+    const freq = moving ? (7.0 + speedPerMs * 10.0) : 1.6; // rad/sec
     if (dt) m.phase += (dt / 1000) * freq;
 
     const s = Math.sin(m.phase);
 
-    // Shins swing opposite each other
-    // Keep it subtle so it looks like "below-knee" gait.
-    const base = 12;          // neutral forward angle
-    const amp  = moving ? 26 : 8;
-    const aL = base + amp * s;     // left shin
-    const aR = base - amp * s;     // right shin
+    // subtle but readable
+    const thighAmp = moving ? 18 : 6;
+    const shinAmp  = moving ? 26 : 8;
 
-    m.parts.shinL.setAttribute("transform", rot(aL, ...KNEE_L));
-    m.parts.shinR.setAttribute("transform", rot(aR, ...KNEE_R));
+    const thighL = -thighAmp * s;
+    const thighR =  thighAmp * s;
+
+    // knee bends more when leg is forward
+    const bendL = 18 + shinAmp * Math.max(0,  s);
+    const bendR = 18 + shinAmp * Math.max(0, -s);
+
+    m.parts.thighL.setAttribute("transform", rot(thighL, ...HIP_L));
+    m.parts.shinL.setAttribute("transform",  rot(bendL,  ...KNEE_L));
+
+    m.parts.thighR.setAttribute("transform", rot(thighR, ...HIP_R));
+    m.parts.shinR.setAttribute("transform",  rot(bendR,  ...KNEE_R));
   }
 
   // Explosion visuals
@@ -451,7 +403,6 @@
     }
   }
 
-  // Controls
   addEventListener("pointerdown", (e) => {
     if (e.button === 2) {
       e.preventDefault();
@@ -473,10 +424,7 @@
     const dt = clamp(now - (tick._last || now), 8, 28);
     tick._last = now;
 
-    if (!hasPointer) {
-      target.x = innerWidth * 0.70;
-      target.y = innerHeight * 0.44;
-    }
+    if (!hasPointer) { target.x = innerWidth * 0.70; target.y = innerHeight * 0.44; }
 
     for (const m of men) {
       if (!m.alive || m.dying) continue;
@@ -527,15 +475,15 @@
         m.bubble.classList.remove("on");
       }
 
-      // Only animate below-knee parts
       const speedNow = Math.hypot(m.vel.x, m.vel.y);
       const speedPerMs = speedNow / dt;
+
       applyPose(m, speedPerMs, dt);
 
-      // tiny bob (very subtle)
-      const moving = !stopped && speedPerMs > 0.10;
-      m.bobT += dt * 0.01 * (moving ? 1.4 : 0.6);
-      const bob = Math.sin(m.bobT) * (moving ? 0.8 : 0.3);
+      // minimal bob
+      const moving = !stopped && speedPerMs > 0.08;
+      m.bobT += dt * 0.01 * (moving ? 1.6 : 0.6);
+      const bob = Math.sin(m.bobT) * (moving ? 0.7 : 0.25);
 
       m.el.style.left = m.pos.x + "px";
       m.el.style.top  = (m.pos.y + bob) + "px";
