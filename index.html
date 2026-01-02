@@ -3,102 +3,67 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Minimal Bio + Notes</title>
+  <title>DL engineer</title>
   <style>
-    :root { color-scheme: light; }
     * { box-sizing: border-box; }
-    html, body { height: 100%; margin: 0; background: #fff; color: #000; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial; }
+    html, body { height: 100%; margin: 0; background: #fff; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; }
 
-    .wrap { height: 100%; width: 100%; display: grid; grid-template-rows: auto 1fr; }
-
+    /* Minimal header */
     header{
-      display:flex; align-items:baseline; justify-content:space-between;
-      padding: 10px 12px;
+      height: 44px;
+      display: flex;
+      align-items: center;
+      padding: 0 14px;
+      font-size: 14px;
+      font-weight: 650;
       border-bottom: 1px solid rgba(0,0,0,0.10);
+      user-select: none;
     }
-    .name{ margin:0; font-size:16px; font-weight:650; letter-spacing:-0.2px; }
-    .desc{ margin:2px 0 0; font-size:12px; color:rgba(0,0,0,0.60); }
-    .meta{ font-size:12px; color:rgba(0,0,0,0.45); white-space:nowrap; }
 
-    main{ position:relative; width:100%; height:100%; }
-
-    .note{ position:absolute; inset:0; display:grid; grid-template-rows:auto 1fr auto; }
-    .note label{
-      padding:10px 12px;
-      font-size:12px; color:rgba(0,0,0,0.55);
-      display:flex; justify-content:space-between; align-items:center;
-      border-bottom:1px solid rgba(0,0,0,0.08);
-    }
+    /* Full-screen writing area */
     textarea{
-      width:100%; height:100%;
-      border:0; outline:none; resize:none;
-      padding:14px 12px;
-      font-size:15px; line-height:1.5;
-      background:#fff; color:#000;
+      position: fixed;
+      left: 0; right: 0;
+      top: 44px; bottom: 0;
+      width: 100%;
+      height: calc(100% - 44px);
+      border: 0;
+      outline: none;
+      resize: none;
+      background: #fff;
+      color: #000;
+      padding: 16px 14px;
+      font-size: 16px;
+      line-height: 1.55;
     }
     textarea::placeholder{ color: rgba(0,0,0,0.25); }
-
-    .hint{
-      padding:10px 12px;
-      font-size:12px; color:rgba(0,0,0,0.45);
-      border-top:1px solid rgba(0,0,0,0.08);
-      display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap;
-      position: relative;
-    }
-
-    .controls{
-      position: absolute;
-      right: 12px;
-      bottom: 10px;
-      display: inline-flex;
-      gap: 8px;
-      align-items: center;
-    }
-    button.btn{
-      appearance: none;
-      border: 1px solid rgba(0,0,0,0.14);
-      background: rgba(0,0,0,0.03);
-      color: rgba(0,0,0,0.75);
-      padding: 8px 10px;
-      border-radius: 10px;
-      font-size: 12px;
-      cursor: pointer;
-      transition: transform .12s ease, background .12s ease, border-color .12s ease;
-    }
-    button.btn:hover{
-      transform: translateY(-1px);
-      background: rgba(0,0,0,0.05);
-      border-color: rgba(0,0,0,0.18);
-    }
-    .count{ font-size: 12px; color: rgba(0,0,0,0.45); }
-
-    .kbd{
-      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-      font-size: 11px;
-      border: 1px solid rgba(0,0,0,0.14);
-      background: rgba(0,0,0,0.03);
-      padding: 2px 6px;
-      border-radius: 8px;
-    }
 
     /* Little man */
     .runner{
       position: fixed;
       left: 0; top: 0;
       width: 54px; height: 54px;
+      transform: translate(-50%, -50%); /* center anchor */
       pointer-events: none;
       z-index: 999999;
-      transform: translate(-50%, -50%);
       filter: drop-shadow(0 10px 10px rgba(0,0,0,0.10));
-      will-change: left, top;
+      will-change: left, top, transform, opacity;
     }
     .man{
       width: 54px; height: 54px;
       transform-origin: 50% 50%;
       transform: scaleX(1);
     }
-    .man svg { width: 54px; height: 54px; display:block; }
+    .man svg { width: 54px; height: 54px; display: block; }
 
+    /* Death effect */
+    .runner.dead{
+      opacity: 0;
+      transform: translate(-50%, -50%) scale(0.25);
+      transition: opacity 180ms ease, transform 220ms ease;
+    }
+
+    /* Speech bubble */
     .bubble{
       position:absolute;
       left: 58px;
@@ -129,7 +94,7 @@
       transform: rotate(45deg);
     }
 
-    /* Explosion (minimal) */
+    /* Minimal explosion */
     .explosion{
       position: fixed;
       left: 0; top: 0;
@@ -144,7 +109,7 @@
       inset: -2px;
       border-radius: 999px;
       border: 2px solid rgba(0,0,0,0.25);
-      transform: scale(0.15);
+      transform: scale(0.12);
       opacity: 0.9;
       animation: boom 520ms ease-out forwards;
     }
@@ -154,23 +119,16 @@
       animation-duration: 620ms;
       animation-delay: 20ms;
     }
-
-    .explosion .dots{
-      position:absolute;
-      left:50%; top:50%;
-      width: 2px; height: 2px;
-      transform: translate(-50%, -50%);
-    }
     .explosion .dot{
       position:absolute;
+      left: 50%; top: 50%;
       width: 3px; height: 3px;
       border-radius: 999px;
       background: rgba(0,0,0,0.22);
-      transform: translate(-50%, -50%) scale(0.6);
+      transform: translate(-50%, -50%) scale(0.7);
       opacity: 0.9;
-      animation: dot 520ms ease-out forwards;
+      animation: dot 560ms ease-out forwards;
     }
-
     @keyframes boom{
       0%   { transform: scale(0.10); opacity: 0.95; }
       70%  { opacity: 0.55; }
@@ -183,275 +141,248 @@
   </style>
 </head>
 <body>
-  <div class="wrap">
-    <header>
-      <div>
-        <h1 class="name">DL engineer</h1>
-      </div>
-    </header>
+  <header>DL engineer</header>
+  <textarea id="note" placeholder="write…"></textarea>
 
-    <main>
-    </main>
-  </div>
+  <script>
+  (() => {
+    // ----- Config -----
+    const MAX_MEN = 15;
+    const EXPLOSION_RADIUS = 120; // px
+    const EXPLOSION_DOTS = 10;
 
-<script>
-(() => {
-  const note = document.getElementById("note");
-  const addBtn = document.getElementById("add");
-  const countEl = document.getElementById("count");
-
-  // ---- Settings ----
-  const EXPLOSION_RADIUS = 120; // n (px) — радиус убийства
-  const DOTS = 10;             // сколько точек у взрыва
-
-  // Focus shortcut
-  window.addEventListener("keydown", (e) => {
-    if (e.key.toLowerCase() === "k" && (e.ctrlKey || e.metaKey)) {
-      e.preventDefault();
-      note.focus();
-    }
-  });
-
-  // Prevent context menu so ПКМ works
-  window.addEventListener("contextmenu", (e) => e.preventDefault());
-
-  // Target (cursor)
-  let target = { x: window.innerWidth * 0.6, y: window.innerHeight * 0.6 };
-  let hasPointer = false;
-
-  function setTarget(e){
-    hasPointer = true;
-    target.x = e.clientX;
-    target.y = e.clientY;
-  }
-  window.addEventListener("pointermove", setTarget, { passive: true });
-  window.addEventListener("pointerdown", (e) => {
-    // ПКМ -> explosion
-    if (e.button === 2) {
-      explode(e.clientX, e.clientY);
-      return;
-    }
-    // ЛКМ -> update target
-    setTarget(e);
-  }, { passive: false });
-
-  // Reduced motion: keep visible, just slower
-  const prefersReducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
-
-  let paused = false;
-  let fast = false;
-
-  const CFG = {
-    accel: prefersReducedMotion ? 0.004 : 0.020,
-    maxSpeed: prefersReducedMotion ? 0.45 : 1.55, // px/ms
-    friction: 0.86,
-    catchRadius: 12,
-    stopMs: 260,
-    speakMs: 1600,
-    speakCooldownMs: 650
-  };
-
-  function clamp(v,a,b){ return Math.max(a, Math.min(b, v)); }
-
-  // ---- Men management ----
-  const men = [];
-
-  function createMan(seedX, seedY) {
-    const el = document.createElement("div");
-    el.className = "runner";
-
-    const man = document.createElement("div");
-    man.className = "man";
-    man.innerHTML = `
-      <svg viewBox="0 0 64 64" aria-hidden="true">
-        <circle cx="30" cy="14" r="9" fill="#FFD400"/>
-        <path d="M24 24 C24 20, 36 20, 36 24 L38 40 C38 46, 22 46, 22 40 Z" fill="#FFD400"/>
-        <path d="M23 27 C16 28, 12 33, 11 37 C10 40, 13 42, 15 40 C17 37, 19 34, 25 33 Z" fill="#FFD400"/>
-        <path d="M37 27 C44 28, 50 32, 53 36 C55 39, 53 42, 50 41 C46 39, 43 35, 36 34 Z" fill="#FFD400"/>
-        <path d="M26 41 C22 47, 19 52, 18 56 C18 59, 22 60, 24 57 C27 53, 30 48, 32 45 Z" fill="#FFD400"/>
-        <path d="M34 41 C37 47, 41 52, 45 56 C47 58, 50 56, 49 53 C47 49, 43 45, 38 42 Z" fill="#FFD400"/>
-      </svg>
-    `;
-
-    const bubble = document.createElement("div");
-    bubble.className = "bubble";
-    bubble.textContent = "smnth will be later here, now go away";
-
-    el.appendChild(man);
-    el.appendChild(bubble);
-    document.body.appendChild(el);
-
-    const state = {
-      el, man, bubble,
-      pos: { x: seedX, y: seedY },
-      vel: { x: 0, y: 0 },
-      facing: 1,
-      bobT: 0,
-      stopUntil: 0,
-      speakUntil: 0,
-      lastSpeak: 0,
+    // Movement
+    const prefersReducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+    const CFG = {
+      accel: prefersReducedMotion ? 0.004 : 0.020,
+      maxSpeed: prefersReducedMotion ? 0.45 : 1.55, // px/ms
+      friction: 0.86,
+      catchRadius: 12,
+      stopMs: 260,
+      speakMs: 1400,
+      speakCooldownMs: 650,
     };
 
-    // render immediately
-    el.style.left = state.pos.x + "px";
-    el.style.top = state.pos.y + "px";
+    const note = document.getElementById("note");
 
-    men.push(state);
-    countEl.textContent = String(men.length);
-  }
+    // Prevent context menu so ПКМ works
+    window.addEventListener("contextmenu", (e) => e.preventDefault());
 
-  function removeMan(idx) {
-    const m = men[idx];
-    if (!m) return;
-    m.el.remove();
-    men.splice(idx, 1);
-    countEl.textContent = String(men.length);
-  }
+    // Cursor target
+    let target = { x: window.innerWidth * 0.6, y: window.innerHeight * 0.6 };
+    let hasPointer = false;
 
-  function seedNearTextarea(offset01 = 0.25) {
-    const r = note.getBoundingClientRect();
-    const x = r.left + r.width * offset01;
-    const y = r.top + r.height * 0.55;
-    return { x, y };
-  }
-
-  // initial spawn (double rAF for layout stability)
-  requestAnimationFrame(() => {
-    requestAnimationFrame(() => {
-      const s = seedNearTextarea(0.25);
-      createMan(s.x, s.y);
-    });
-  });
-
-  addBtn.addEventListener("click", () => {
-    const base = seedNearTextarea(0.25);
-    const jitter = (n) => (Math.random() - 0.5) * n;
-    createMan(
-      clamp(base.x + jitter(140), 0, window.innerWidth),
-      clamp(base.y + jitter(140), 0, window.innerHeight)
-    );
-  });
-
-  window.addEventListener("keydown", (e) => {
-    if (e.key === " ") { e.preventDefault(); paused = !paused; }
-    if (e.key.toLowerCase() === "q") fast = !fast;
-  });
-
-  // ---- Explosion ----
-  function explode(x, y) {
-    // animation
-    const ex = document.createElement("div");
-    ex.className = "explosion";
-    ex.style.left = x + "px";
-    ex.style.top  = y + "px";
-
-    const dots = document.createElement("div");
-    dots.className = "dots";
-    for (let i = 0; i < DOTS; i++) {
-      const d = document.createElement("div");
-      d.className = "dot";
-      const ang = (Math.PI * 2) * (i / DOTS);
-      const r = 24 + Math.random() * 28;
-      const dx = Math.cos(ang) * r;
-      const dy = Math.sin(ang) * r;
-      d.style.setProperty("--dx", `${dx}px`);
-      d.style.setProperty("--dy", `${dy}px`);
-      d.style.animationDuration = (480 + Math.random() * 220) + "ms";
-      dots.appendChild(d);
+    function setTarget(x, y) {
+      hasPointer = true;
+      target.x = x;
+      target.y = y;
     }
-    ex.appendChild(dots);
-    document.body.appendChild(ex);
 
-    setTimeout(() => ex.remove(), 750);
+    window.addEventListener("pointermove", (e) => setTarget(e.clientX, e.clientY), { passive: true });
 
-    // kill men in radius
-    // iterate backwards to safely splice
-    for (let i = men.length - 1; i >= 0; i--) {
-      const m = men[i];
-      const dx = m.pos.x - x;
-      const dy = m.pos.y - y;
-      if (Math.hypot(dx, dy) <= EXPLOSION_RADIUS) {
-        removeMan(i);
+    // Men state
+    const men = [];
+
+    function makeRunnerElement() {
+      const el = document.createElement("div");
+      el.className = "runner";
+
+      const man = document.createElement("div");
+      man.className = "man";
+      man.innerHTML = `
+        <svg viewBox="0 0 64 64" aria-hidden="true">
+          <circle cx="30" cy="14" r="9" fill="#FFD400"/>
+          <path d="M24 24 C24 20, 36 20, 36 24 L38 40 C38 46, 22 46, 22 40 Z" fill="#FFD400"/>
+          <path d="M23 27 C16 28, 12 33, 11 37 C10 40, 13 42, 15 40 C17 37, 19 34, 25 33 Z" fill="#FFD400"/>
+          <path d="M37 27 C44 28, 50 32, 53 36 C55 39, 53 42, 50 41 C46 39, 43 35, 36 34 Z" fill="#FFD400"/>
+          <path d="M26 41 C22 47, 19 52, 18 56 C18 59, 22 60, 24 57 C27 53, 30 48, 32 45 Z" fill="#FFD400"/>
+          <path d="M34 41 C37 47, 41 52, 45 56 C47 58, 50 56, 49 53 C47 49, 43 45, 38 42 Z" fill="#FFD400"/>
+        </svg>
+      `;
+
+      const bubble = document.createElement("div");
+      bubble.className = "bubble";
+      bubble.textContent = "smnth will be later here, now go away";
+
+      el.appendChild(man);
+      el.appendChild(bubble);
+      document.body.appendChild(el);
+
+      return { el, man, bubble };
+    }
+
+    function spawnMan(x, y) {
+      if (men.length >= MAX_MEN) return;
+      const { el, man, bubble } = makeRunnerElement();
+      const m = {
+        el, man, bubble,
+        alive: true,
+        pos: { x, y },
+        vel: { x: 0, y: 0 },
+        facing: 1,
+        bobT: 0,
+        stopUntil: 0,
+        speakUntil: 0,
+        lastSpeak: 0,
+      };
+      el.style.left = x + "px";
+      el.style.top = y + "px";
+      men.push(m);
+    }
+
+    function killMan(m) {
+      if (!m.alive) return;
+      m.alive = false;
+
+      // trigger death animation
+      m.el.classList.add("dead");
+
+      // remove after transition
+      setTimeout(() => {
+        m.el.remove();
+        const idx = men.indexOf(m);
+        if (idx >= 0) men.splice(idx, 1);
+      }, 260);
+    }
+
+    function explode(x, y) {
+      // Visual explosion
+      const ex = document.createElement("div");
+      ex.className = "explosion";
+      ex.style.left = x + "px";
+      ex.style.top  = y + "px";
+
+      for (let i = 0; i < EXPLOSION_DOTS; i++) {
+        const d = document.createElement("div");
+        d.className = "dot";
+        const ang = (Math.PI * 2) * (i / EXPLOSION_DOTS);
+        const r = 22 + Math.random() * 34;
+        d.style.setProperty("--dx", `${Math.cos(ang) * r}px`);
+        d.style.setProperty("--dy", `${Math.sin(ang) * r}px`);
+        d.style.animationDuration = (480 + Math.random() * 220) + "ms";
+        ex.appendChild(d);
+      }
+
+      document.body.appendChild(ex);
+      setTimeout(() => ex.remove(), 750);
+
+      // Kill in radius
+      for (const m of [...men]) {
+        if (!m.alive) continue;
+        const dx = m.pos.x - x;
+        const dy = m.pos.y - y;
+        if (Math.hypot(dx, dy) <= EXPLOSION_RADIUS) killMan(m);
       }
     }
-  }
 
-  // ---- Loop ----
-  function tick(now) {
-    const dt = clamp(now - (tick._last || now), 8, 28);
-    tick._last = now;
+    // Mouse down:
+    // - Right click => explode
+    // - Left click => spawn a man (until 15) AND set target
+    window.addEventListener("pointerdown", (e) => {
+      if (e.button === 2) { // ПКМ
+        e.preventDefault();
+        explode(e.clientX, e.clientY);
+        return;
+      }
+      // ЛКМ
+      setTarget(e.clientX, e.clientY);
+      spawnMan(e.clientX, e.clientY);
+    }, { passive: false });
 
-    // If user never moved pointer yet, chase the textarea region
-    if (!hasPointer) {
+    // Seed one man when layout is ready
+    function seed() {
       const r = note.getBoundingClientRect();
+      const x = r.left + r.width * 0.25;
+      const y = r.top + r.height * 0.55;
+      spawnMan(x, y);
+
+      // Default target (so it moves even before first mouse move)
       target.x = r.left + r.width * 0.75;
       target.y = r.top + r.height * 0.35;
     }
 
-    const speedMul = fast ? 1.9 : 1.0;
+    // Start after DOM/layout is stable
+    requestAnimationFrame(() => requestAnimationFrame(seed));
 
-    for (const m of men) {
-      const stopped = now < m.stopUntil;
+    // Loop
+    function clamp(v,a,b){ return Math.max(a, Math.min(b, v)); }
 
-      if (!paused && !stopped) {
-        const dx = target.x - m.pos.x;
-        const dy = target.y - m.pos.y;
-        const dist = Math.hypot(dx, dy) || 1;
+    function tick(now) {
+      const dt = clamp(now - (tick._last || now), 8, 28);
+      tick._last = now;
 
-        if (Math.abs(dx) > 2) m.facing = dx >= 0 ? 1 : -1;
+      // If no pointer yet, keep target in textarea area
+      if (!hasPointer) {
+        const r = note.getBoundingClientRect();
+        target.x = r.left + r.width * 0.75;
+        target.y = r.top + r.height * 0.35;
+      }
 
-        const ax = (dx / dist) * CFG.accel * dt * speedMul;
-        const ay = (dy / dist) * CFG.accel * dt * speedMul;
+      for (const m of men) {
+        if (!m.alive) continue;
 
-        m.vel.x = (m.vel.x + ax) * CFG.friction;
-        m.vel.y = (m.vel.y + ay) * CFG.friction;
+        const stopped = now < m.stopUntil;
 
-        const sp = Math.hypot(m.vel.x, m.vel.y) || 1;
-        const maxV = CFG.maxSpeed * dt * speedMul;
-        if (sp > maxV) {
-          m.vel.x = (m.vel.x / sp) * maxV;
-          m.vel.y = (m.vel.y / sp) * maxV;
-        }
+        if (!stopped) {
+          const dx = target.x - m.pos.x;
+          const dy = target.y - m.pos.y;
+          const dist = Math.hypot(dx, dy) || 1;
 
-        m.pos.x += m.vel.x;
-        m.pos.y += m.vel.y;
+          if (Math.abs(dx) > 2) m.facing = dx >= 0 ? 1 : -1;
 
-        m.pos.x = clamp(m.pos.x, 0, window.innerWidth);
-        m.pos.y = clamp(m.pos.y, 0, window.innerHeight);
+          const ax = (dx / dist) * CFG.accel * dt;
+          const ay = (dy / dist) * CFG.accel * dt;
 
-        // Catch: snap CENTER to cursor, speak
-        if (dist < CFG.catchRadius) {
-          m.pos.x = target.x;
-          m.pos.y = target.y;
-          m.vel.x = 0; m.vel.y = 0;
-          m.stopUntil = now + CFG.stopMs;
+          m.vel.x = (m.vel.x + ax) * CFG.friction;
+          m.vel.y = (m.vel.y + ay) * CFG.friction;
 
-          if (now - m.lastSpeak > CFG.speakCooldownMs) {
-            m.lastSpeak = now;
-            m.speakUntil = now + CFG.speakMs;
-            m.bubble.classList.add("on");
+          const sp = Math.hypot(m.vel.x, m.vel.y) || 1;
+          const maxV = CFG.maxSpeed * dt;
+          if (sp > maxV) {
+            m.vel.x = (m.vel.x / sp) * maxV;
+            m.vel.y = (m.vel.y / sp) * maxV;
           }
+
+          m.pos.x += m.vel.x;
+          m.pos.y += m.vel.y;
+
+          m.pos.x = clamp(m.pos.x, 0, window.innerWidth);
+          m.pos.y = clamp(m.pos.y, 44, window.innerHeight); // below header
+
+          // Catch
+          if (dist < CFG.catchRadius) {
+            m.pos.x = target.x;
+            m.pos.y = target.y;
+            m.vel.x = 0; m.vel.y = 0;
+            m.stopUntil = now + CFG.stopMs;
+
+            // Speak
+            if (now - m.lastSpeak > CFG.speakCooldownMs) {
+              m.lastSpeak = now;
+              m.speakUntil = now + CFG.speakMs;
+              m.bubble.classList.add("on");
+            }
+          }
+
+          const speed01 = clamp(sp / (maxV + 1e-6), 0, 1);
+          m.bobT += dt * 0.01 * (0.6 + speed01 * 2.0);
         }
 
-        const speed01 = clamp(sp / (maxV + 1e-6), 0, 1);
-        m.bobT += dt * 0.01 * (0.6 + speed01 * 2.0);
+        if (m.bubble.classList.contains("on") && now > m.speakUntil) {
+          m.bubble.classList.remove("on");
+        }
+
+        const bob = Math.sin(m.bobT) * 1.0;
+        m.el.style.left = m.pos.x + "px";
+        m.el.style.top  = (m.pos.y + bob) + "px";
+        m.man.style.transform = `scaleX(${m.facing})`;
       }
 
-      if (m.bubble.classList.contains("on") && now > m.speakUntil) {
-        m.bubble.classList.remove("on");
-      }
-
-      const bob = Math.sin(m.bobT) * 1.0;
-      m.el.style.left = m.pos.x + "px";
-      m.el.style.top  = (m.pos.y + bob) + "px";
-      m.man.style.transform = `scaleX(${m.facing})`;
+      requestAnimationFrame(tick);
     }
 
     requestAnimationFrame(tick);
-  }
-
-  requestAnimationFrame(tick);
-})();
-</script>
+  })();
+  </script>
 </body>
 </html>
