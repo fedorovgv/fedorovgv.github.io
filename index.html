@@ -9,51 +9,38 @@
     html, body { height: 100%; margin: 0; background: #fff; overflow: hidden; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; }
 
     header{
-      position: fixed;
-      left: 0; right: 0; top: 0;
-      height: 44px;
-      display: flex;
-      align-items: center;
-      padding: 0 14px;
-      font-size: 14px;
-      font-weight: 650;
+      position: fixed; left: 0; right: 0; top: 0;
+      height: 44px; display: flex; align-items: center;
+      padding: 0 14px; font-size: 14px; font-weight: 650;
       border-bottom: 1px solid rgba(0,0,0,0.10);
-      background: #fff;
-      user-select: none;
-      z-index: 10;
+      background: #fff; user-select: none; z-index: 10;
     }
 
+    /* SMALL + THIN */
     .runner{
       position: fixed;
       left: 0; top: 0;
-      width: 96px; height: 96px;          /* крупнее: видно бег */
+      width: 44px; height: 44px;         /* <-- much smaller */
       transform: translate(-50%, -50%);
       pointer-events: none;
       z-index: 1000;
-      filter: drop-shadow(0 10px 10px rgba(0,0,0,0.10));
+      filter: drop-shadow(0 8px 10px rgba(0,0,0,0.10));
       will-change: left, top;
     }
+    .man{ width: 44px; height: 44px; transform-origin: 50% 50%; will-change: transform, opacity; }
+    .man svg{ width: 44px; height: 44px; display:block; }
 
-    .man{
-      width: 96px; height: 96px;
-      transform-origin: 50% 50%;
-      will-change: transform, opacity;
-    }
-    .man svg { width: 96px; height: 96px; display: block; }
-
-    /* смерть: желтое тело исчезает */
     .runner.dying .man{
       opacity: 0;
-      transform: scaleX(var(--face, 1)) scale(0.94);
+      transform: scaleX(var(--face, 1)) scale(0.92);
       transition: opacity 140ms ease, transform 180ms ease;
     }
 
-    /* пузырь */
     .bubble{
       position:absolute;
-      left: 98px;
-      top: 12px;
-      max-width: 320px;
+      left: 52px;
+      top: -2px;
+      max-width: 280px;
       padding: 8px 10px;
       border-radius: 14px;
       background: #fff;
@@ -79,27 +66,24 @@
       transform: rotate(45deg);
     }
 
-    /* душа (белая, заметная) */
+    /* SOUL */
     .soul{
       position: fixed;
       left: 0; top: 0;
-      width: 104px; height: 104px;
+      width: 56px; height: 56px;
       transform: translate(-50%, -50%);
       pointer-events: none;
       z-index: 1500;
       opacity: 0;
       filter:
-        drop-shadow(0 12px 22px rgba(0,0,0,0.12))
-        drop-shadow(0 0 14px rgba(255,255,255,0.98));
+        drop-shadow(0 10px 16px rgba(0,0,0,0.12))
+        drop-shadow(0 0 12px rgba(255,255,255,0.98));
       will-change: left, top, opacity;
     }
-    .soul svg { width: 104px; height: 104px; display: block; }
-    .soul.on{
-      opacity: 1;
-      transition: opacity 180ms ease;
-    }
+    .soul svg{ width: 56px; height: 56px; display:block; }
+    .soul.on{ opacity: 1; transition: opacity 180ms ease; }
 
-    /* взрыв (огненный) */
+    /* Explosion (kept) */
     .boom{
       position: fixed;
       left: 0; top: 0;
@@ -111,8 +95,7 @@
       filter: saturate(1.25);
     }
     .boom .shock{
-      position:absolute;
-      left:50%; top:50%;
+      position:absolute; left:50%; top:50%;
       width: 20px; height: 20px;
       border-radius: 999px;
       border: 2px solid rgba(255, 70, 0, 0.38);
@@ -121,8 +104,7 @@
       animation: shock 620ms cubic-bezier(.1,.8,.2,1) forwards;
     }
     .boom .flash{
-      position:absolute;
-      left:50%; top:50%;
+      position:absolute; left:50%; top:50%;
       width: 26px; height: 26px;
       border-radius: 999px;
       transform: translate(-50%, -50%) scale(0.12);
@@ -137,8 +119,7 @@
       filter: blur(0.2px);
     }
     .boom .puff{
-      position:absolute;
-      left:50%; top:50%;
+      position:absolute; left:50%; top:50%;
       width: var(--s);
       height: var(--s);
       border-radius: 999px;
@@ -154,8 +135,7 @@
       animation: puff 760ms cubic-bezier(.12,.8,.18,1) forwards;
     }
     .boom .smoke{
-      position:absolute;
-      left:50%; top:50%;
+      position:absolute; left:50%; top:50%;
       width: var(--s);
       height: var(--s);
       border-radius: 999px;
@@ -169,25 +149,10 @@
       animation: smoke 980ms cubic-bezier(.12,.8,.18,1) forwards;
       mix-blend-mode: normal;
     }
-    @keyframes flash{
-      0%   { transform: translate(-50%, -50%) scale(0.12); opacity: 0.95; }
-      35%  { transform: translate(-50%, -50%) scale(1.25); opacity: 0.75; }
-      100% { transform: translate(-50%, -50%) scale(2.25); opacity: 0; }
-    }
-    @keyframes shock{
-      0%   { transform: translate(-50%, -50%) scale(0.12); opacity: 0.9; }
-      100% { transform: translate(-50%, -50%) scale(3.2); opacity: 0; }
-    }
-    @keyframes puff{
-      0%   { transform: translate(-50%, -50%) scale(0.18); opacity: 0.9; }
-      55%  { opacity: 0.55; }
-      100% { transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) scale(1.65); opacity: 0; }
-    }
-    @keyframes smoke{
-      0%   { transform: translate(-50%, -50%) scale(0.18); opacity: 0.18; }
-      35%  { opacity: 0.30; }
-      100% { transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) scale(2.1); opacity: 0; }
-    }
+    @keyframes flash{ 0%{transform:translate(-50%,-50%) scale(.12);opacity:.95;} 35%{transform:translate(-50%,-50%) scale(1.25);opacity:.75;} 100%{transform:translate(-50%,-50%) scale(2.25);opacity:0;} }
+    @keyframes shock{ 0%{transform:translate(-50%,-50%) scale(.12);opacity:.9;} 100%{transform:translate(-50%,-50%) scale(3.2);opacity:0;} }
+    @keyframes puff{ 0%{transform:translate(-50%,-50%) scale(.18);opacity:.9;} 55%{opacity:.55;} 100%{transform:translate(calc(-50% + var(--dx)),calc(-50% + var(--dy))) scale(1.65);opacity:0;} }
+    @keyframes smoke{ 0%{transform:translate(-50%,-50%) scale(.18);opacity:.18;} 35%{opacity:.30;} 100%{transform:translate(calc(-50% + var(--dx)),calc(-50% + var(--dy))) scale(2.1);opacity:0;} }
   </style>
 </head>
 <body>
@@ -209,9 +174,8 @@
     speakCooldownMs: 650,
   };
 
-  // Душа: медленнее и дольше
   const SOUL = {
-    risePxPerMs: 0.28,   // медленнее
+    risePxPerMs: 0.28,
     lifeMs: 4200,
     driftX: 220,
     waveAmp: [22, 32],
@@ -228,75 +192,61 @@
 
   const men = [];
 
-  // Рисуем цельного человечка: капсулы + круги-суставы закрывают любые щели.
-  // Анимацию делаем через rotate(angle cx cy) по конкретным координатам суставов.
+  // thinner stickman-like silhouette (your style) + FIXED upper body
   function manSVG({ color, outline }) {
     const fill = color;
     const outlineStroke = outline ? "rgba(0,0,0,0.30)" : "none";
-    const outlineW = outline ? 3.2 : 0;
+    const outlineW = outline ? 2.4 : 0;
 
-    // Вспомогательная "капсула" — толстая линия с круглыми концами (выглядит как цельный сегмент)
-    // + поверх кладём кружок на сустав (закрывает стык при любых углах).
+    // NOTE: viewBox stays 64x64, we scale via CSS (44px) => thin & small.
+    // Only shins/feet are meant to rotate (we animate those in JS).
     return `
       <svg viewBox="0 0 64 64" aria-hidden="true">
         <g stroke="${outlineStroke}" stroke-width="${outlineW}" stroke-linecap="round" stroke-linejoin="round">
           <!-- HEAD -->
-          <circle cx="32" cy="16" r="11" fill="${fill}" />
+          <circle cx="32" cy="16" r="9.5" fill="${fill}" />
           <!-- NECK -->
-          <path d="M32 26 L32 28" stroke="${fill}" stroke-width="12" />
+          <path d="M32 25 L32 27" stroke="${fill}" stroke-width="8" />
 
-          <!-- BODY (smooth oval) -->
-          <ellipse cx="32" cy="40" rx="12" ry="16" fill="${fill}"/>
+          <!-- TORSO: slim oval -->
+          <ellipse cx="32" cy="38" rx="9" ry="13" fill="${fill}"/>
 
-          <!-- ARMS -->
-          <g class="armL">
-            <path d="M26 32 L16 40" stroke="${fill}" stroke-width="12" />
-            <circle cx="26" cy="32" r="6" fill="${fill}"/>
-            <circle cx="16" cy="40" r="6" fill="${fill}"/>
-            <g class="foreL">
-              <path d="M16 40 L14 50" stroke="${fill}" stroke-width="12" />
-              <circle cx="16" cy="40" r="6" fill="${fill}"/>
-              <circle cx="14" cy="50" r="6" fill="${fill}"/>
-            </g>
+          <!-- ARMS: fixed -->
+          <path d="M25 32 L16 40" stroke="${fill}" stroke-width="8" />
+          <circle cx="25" cy="32" r="4.8" fill="${fill}"/>
+          <circle cx="16" cy="40" r="4.8" fill="${fill}"/>
+
+          <path d="M39 32 L48 40" stroke="${fill}" stroke-width="8" />
+          <circle cx="39" cy="32" r="4.8" fill="${fill}"/>
+          <circle cx="48" cy="40" r="4.8" fill="${fill}"/>
+
+          <!-- THIGHS: fixed (hips->knees) -->
+          <path d="M30 50 L26 56" stroke="${fill}" stroke-width="8" />
+          <circle cx="30" cy="50" r="4.8" fill="${fill}"/>
+          <circle cx="26" cy="56" r="4.8" fill="${fill}"/>
+
+          <path d="M34 50 L38 56" stroke="${fill}" stroke-width="8" />
+          <circle cx="34" cy="50" r="4.8" fill="${fill}"/>
+          <circle cx="38" cy="56" r="4.8" fill="${fill}"/>
+
+          <!-- SHINS: animated ONLY BELOW KNEE -->
+          <g class="shinL">
+            <path d="M26 56 L30 63" stroke="${fill}" stroke-width="8" />
+            <circle cx="26" cy="56" r="4.8" fill="${fill}"/>
+            <circle cx="30" cy="63" r="4.8" fill="${fill}"/>
+            <!-- small foot -->
+            <path d="M28 63 L34 63" stroke="${fill}" stroke-width="7" />
           </g>
 
-          <g class="armR">
-            <path d="M38 32 L48 40" stroke="${fill}" stroke-width="12" />
-            <circle cx="38" cy="32" r="6" fill="${fill}"/>
-            <circle cx="48" cy="40" r="6" fill="${fill}"/>
-            <g class="foreR">
-              <path d="M48 40 L50 50" stroke="${fill}" stroke-width="12" />
-              <circle cx="48" cy="40" r="6" fill="${fill}"/>
-              <circle cx="50" cy="50" r="6" fill="${fill}"/>
-            </g>
+          <g class="shinR">
+            <path d="M38 56 L34 63" stroke="${fill}" stroke-width="8" />
+            <circle cx="38" cy="56" r="4.8" fill="${fill}"/>
+            <circle cx="34" cy="63" r="4.8" fill="${fill}"/>
+            <path d="M30 63 L36 63" stroke="${fill}" stroke-width="7" />
           </g>
 
-          <!-- LEGS -->
-          <g class="thighL">
-            <path d="M30 50 L24 58" stroke="${fill}" stroke-width="12" />
-            <circle cx="30" cy="50" r="6" fill="${fill}"/>
-            <circle cx="24" cy="58" r="6" fill="${fill}"/>
-            <g class="shinL">
-              <path d="M24 58 L30 64" stroke="${fill}" stroke-width="12" />
-              <circle cx="24" cy="58" r="6" fill="${fill}"/>
-              <circle cx="30" cy="64" r="6" fill="${fill}"/>
-            </g>
-          </g>
-
-          <g class="thighR">
-            <path d="M34 50 L40 58" stroke="${fill}" stroke-width="12" />
-            <circle cx="34" cy="50" r="6" fill="${fill}"/>
-            <circle cx="40" cy="58" r="6" fill="${fill}"/>
-            <g class="shinR">
-              <path d="M40 58 L34 64" stroke="${fill}" stroke-width="12" />
-              <circle cx="40" cy="58" r="6" fill="${fill}"/>
-              <circle cx="34" cy="64" r="6" fill="${fill}"/>
-            </g>
-          </g>
-
-          <!-- “Shoulder/hip cover” blobs to make silhouette even more solid -->
-          <circle cx="32" cy="30" r="7" fill="${fill}"/>
-          <circle cx="32" cy="50" r="7" fill="${fill}"/>
+          <!-- hip cover to keep solid -->
+          <circle cx="32" cy="50" r="6.2" fill="${fill}"/>
         </g>
       </svg>
     `;
@@ -318,16 +268,9 @@
     el.appendChild(bubble);
     document.body.appendChild(el);
 
-    // grab parts for JS posing
     const svg = man.querySelector("svg");
     const parts = {
-      armL: svg.querySelector(".armL"),
-      foreL: svg.querySelector(".foreL"),
-      armR: svg.querySelector(".armR"),
-      foreR: svg.querySelector(".foreR"),
-      thighL: svg.querySelector(".thighL"),
       shinL: svg.querySelector(".shinL"),
-      thighR: svg.querySelector(".thighR"),
       shinR: svg.querySelector(".shinR"),
     };
 
@@ -349,7 +292,7 @@
       vel: { x: 0, y: 0 },
       facing: 1,
       bobT: 0,
-      phase: Math.random() * Math.PI * 2, // беговая фаза
+      phase: Math.random() * Math.PI * 2,
       stopUntil: 0,
       speakUntil: 0,
       lastSpeak: 0,
@@ -358,8 +301,6 @@
     el.style.left = x + "px";
     el.style.top  = y + "px";
     men.push(m);
-
-    // начальная поза
     applyPose(m, 0, 0);
   }
 
@@ -427,71 +368,36 @@
     }, 260);
   }
 
-  // --- Pose system (JS transforms inside SVG) ---
-  // Joint coordinates in viewBox:
-  const J = {
-    shL: [26,32], elL: [16,40],
-    shR: [38,32], elR: [48,40],
-    hipL:[30,50], knL:[24,58],
-    hipR:[34,50], knR:[40,58],
-  };
+  // --- Only-below-knee animation ---
+  // Knee pivots in viewBox coordinates:
+  const KNEE_L = [26, 56];
+  const KNEE_R = [38, 56];
 
   function rot(angleDeg, cx, cy){
     return `rotate(${angleDeg.toFixed(2)} ${cx} ${cy})`;
   }
 
   function applyPose(m, speedPerMs, dt){
-    const p = m.parts;
-
-    // если стоит — лёгкая idle поза
     const moving = speedPerMs > 0.10 && dt > 0;
-    const baseFreq = moving ? (6.5 + speedPerMs * 6.0) : 1.2; // рад/сек
-    if (dt) m.phase += (dt / 1000) * baseFreq;
+
+    // phase speed depends on movement
+    const freq = moving ? (7.0 + speedPerMs * 8.0) : 1.4; // rad/sec
+    if (dt) m.phase += (dt / 1000) * freq;
 
     const s = Math.sin(m.phase);
-    const c = Math.cos(m.phase);
 
-    // ноги: бедро + голень (колено сгибается)
-    const thighSwing = 26 * s;
-    const kneeBendL  = 28 + 34 * Math.max(0,  s); // когда нога впереди — сильнее сгиб
-    const kneeBendR  = 28 + 34 * Math.max(0, -s);
+    // Shins swing opposite each other
+    // Keep it subtle so it looks like "below-knee" gait.
+    const base = 12;          // neutral forward angle
+    const amp  = moving ? 26 : 8;
+    const aL = base + amp * s;     // left shin
+    const aR = base - amp * s;     // right shin
 
-    // руки в противофазе
-    const armSwing = -18 * s;
-    const elbowBend = 16 + 14 * Math.max(0, -s);
-
-    // чуть наклон корпуса вперёд на скорости (через руки/ноги достаточно)
-
-    // Left leg
-    p.thighL.setAttribute("transform", rot(-thighSwing, ...J.hipL));
-    p.shinL.setAttribute("transform",  rot(kneeBendL,  ...J.knL));
-
-    // Right leg
-    p.thighR.setAttribute("transform", rot(thighSwing, ...J.hipR));
-    p.shinR.setAttribute("transform",  rot(kneeBendR,  ...J.knR));
-
-    // Arms
-    p.armL.setAttribute("transform",  rot(armSwing, ...J.shL));
-    p.foreL.setAttribute("transform", rot(elbowBend, ...J.elL));
-
-    p.armR.setAttribute("transform",  rot(-armSwing, ...J.shR));
-    p.foreR.setAttribute("transform", rot(elbowBend, ...J.elR));
-
-    // если не движется — пусть руки/ноги меньше “дёргаются”
-    if (!moving){
-      // чуть прижать анимацию к спокойной позе
-      p.thighL.setAttribute("transform", rot(-6, ...J.hipL));
-      p.thighR.setAttribute("transform", rot( 6, ...J.hipR));
-      p.shinL.setAttribute("transform",  rot(22, ...J.knL));
-      p.shinR.setAttribute("transform",  rot(22, ...J.knR));
-      p.armL.setAttribute("transform",   rot(-6, ...J.shL));
-      p.armR.setAttribute("transform",   rot( 6, ...J.shR));
-      p.foreL.setAttribute("transform",  rot(10, ...J.elL));
-      p.foreR.setAttribute("transform",  rot(10, ...J.elR));
-    }
+    m.parts.shinL.setAttribute("transform", rot(aL, ...KNEE_L));
+    m.parts.shinR.setAttribute("transform", rot(aR, ...KNEE_R));
   }
 
-  // --- Explosion visuals ---
+  // Explosion visuals
   function fireballExplosion(x, y){
     const b = document.createElement("div");
     b.className = "boom";
@@ -545,9 +451,7 @@
     }
   }
 
-  // Controls:
-  // LMB: spawn (<=15) + set target
-  // RMB: explode
+  // Controls
   addEventListener("pointerdown", (e) => {
     if (e.button === 2) {
       e.preventDefault();
@@ -623,16 +527,15 @@
         m.bubble.classList.remove("on");
       }
 
-      const speedNow = Math.hypot(m.vel.x, m.vel.y); // px / frame
+      // Only animate below-knee parts
+      const speedNow = Math.hypot(m.vel.x, m.vel.y);
       const speedPerMs = speedNow / dt;
-
-      // поза/бег
       applyPose(m, speedPerMs, dt);
 
-      // легкий bob
+      // tiny bob (very subtle)
       const moving = !stopped && speedPerMs > 0.10;
-      m.bobT += dt * 0.01 * (moving ? 2.0 : 0.6);
-      const bob = Math.sin(m.bobT) * (moving ? 1.6 : 0.6);
+      m.bobT += dt * 0.01 * (moving ? 1.4 : 0.6);
+      const bob = Math.sin(m.bobT) * (moving ? 0.8 : 0.3);
 
       m.el.style.left = m.pos.x + "px";
       m.el.style.top  = (m.pos.y + bob) + "px";
@@ -646,3 +549,4 @@
 </script>
 </body>
 </html>
+
