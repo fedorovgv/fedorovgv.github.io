@@ -9,7 +9,6 @@
     * { box-sizing: border-box; }
     html, body { height: 100%; margin: 0; background: #fff; color: #000; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial; }
 
-    /* Full-bleed white, no extra spaces */
     .wrap { height: 100%; width: 100%; display: grid; grid-template-rows: auto 1fr; }
 
     header{
@@ -23,7 +22,6 @@
 
     main{ position:relative; width:100%; height:100%; }
 
-    /* Write field fills remaining area */
     .note{ position:absolute; inset:0; display:grid; grid-template-rows:auto 1fr auto; }
     .note label{
       padding:10px 12px;
@@ -53,25 +51,30 @@
       border-radius: 8px;
     }
 
-    /* Little man (non-pixel, simple silhouette like your example) */
+    /* Runner: ALWAYS centered at (x,y) using translate(-50%,-50%) */
     .runner{
       position:absolute;
       left:0; top:0;
-      width: 54px; height: 54px; /* overall visual size */
+      width: 54px; height: 54px;
       pointer-events:none;
       will-change: transform;
-      transform: translate(-999px,-999px);
+      transform: translate(-999px,-999px) translate(-50%, -50%);
       filter: drop-shadow(0 10px 10px rgba(0,0,0,0.10));
     }
 
+    /* Flip ONLY the man, not bubble */
+    .man{
+      width: 54px; height: 54px;
+      transform-origin: 50% 50%;
+      transform: scaleX(1);
+    }
     .man svg { width: 54px; height: 54px; display:block; }
 
-    /* Speech bubble */
     .bubble{
       position:absolute;
       left: 58px;
       top: -4px;
-      max-width: 220px;
+      max-width: 240px;
       padding: 8px 10px;
       border-radius: 14px;
       background: #fff;
@@ -85,10 +88,7 @@
       transition: opacity .16s ease, transform .16s ease;
       white-space: normal;
     }
-    .bubble.on{
-      opacity: 1;
-      transform: translateY(0);
-    }
+    .bubble.on{ opacity: 1; transform: translateY(0); }
     .bubble:after{
       content:"";
       position:absolute;
@@ -107,43 +107,24 @@
 </head>
 <body>
   <div class="wrap">
+    <header>
+      <div>
+        <p class="desc">DL engineer</p>
+      </div>
+      <div class="meta">github.io</div>
+    </header>
+
     <main>
       <div class="runner" id="runner" aria-hidden="true">
         <div class="man" id="man">
-          <!-- Simple silhouette inspired by your example (no face) -->
+          <!-- Simple silhouette (no face) -->
           <svg viewBox="0 0 64 64" aria-hidden="true">
-            <!-- head -->
             <circle cx="30" cy="14" r="9" fill="#FFD400"/>
-            <!-- torso -->
-            <path d="M24 24
-                     C24 20, 36 20, 36 24
-                     L38 40
-                     C38 46, 22 46, 22 40
-                     Z" fill="#FFD400"/>
-            <!-- left arm -->
-            <path d="M23 27
-                     C16 28, 12 33, 11 37
-                     C10 40, 13 42, 15 40
-                     C17 37, 19 34, 25 33
-                     Z" fill="#FFD400"/>
-            <!-- right arm -->
-            <path d="M37 27
-                     C44 28, 50 32, 53 36
-                     C55 39, 53 42, 50 41
-                     C46 39, 43 35, 36 34
-                     Z" fill="#FFD400"/>
-            <!-- left leg -->
-            <path d="M26 41
-                     C22 47, 19 52, 18 56
-                     C18 59, 22 60, 24 57
-                     C27 53, 30 48, 32 45
-                     Z" fill="#FFD400"/>
-            <!-- right leg -->
-            <path d="M34 41
-                     C37 47, 41 52, 45 56
-                     C47 58, 50 56, 49 53
-                     C47 49, 43 45, 38 42
-                     Z" fill="#FFD400"/>
+            <path d="M24 24 C24 20, 36 20, 36 24 L38 40 C38 46, 22 46, 22 40 Z" fill="#FFD400"/>
+            <path d="M23 27 C16 28, 12 33, 11 37 C10 40, 13 42, 15 40 C17 37, 19 34, 25 33 Z" fill="#FFD400"/>
+            <path d="M37 27 C44 28, 50 32, 53 36 C55 39, 53 42, 50 41 C46 39, 43 35, 36 34 Z" fill="#FFD400"/>
+            <path d="M26 41 C22 47, 19 52, 18 56 C18 59, 22 60, 24 57 C27 53, 30 48, 32 45 Z" fill="#FFD400"/>
+            <path d="M34 41 C37 47, 41 52, 45 56 C47 58, 50 56, 49 53 C47 49, 43 45, 38 42 Z" fill="#FFD400"/>
           </svg>
         </div>
 
@@ -156,6 +137,7 @@
 (() => {
   const note = document.getElementById("note");
   const runner = document.getElementById("runner");
+  const man = document.getElementById("man");
   const bubble = document.getElementById("bubble");
 
   // Focus shortcut
@@ -181,8 +163,8 @@
   window.addEventListener("pointermove", setTarget, { passive: true });
   window.addEventListener("pointerdown", setTarget, { passive: true });
 
-  // Runner physics
-  const pos = { x: window.innerWidth * 0.18, y: window.innerHeight * 0.6 };
+  // Runner physics (pos is CENTER coords!)
+  const pos = { x: window.innerWidth * 0.18, y: window.innerHeight * 0.60 };
   const vel = { x: 0, y: 0 };
 
   let paused = false;
@@ -192,37 +174,33 @@
     accel: 0.020,
     maxSpeed: 1.55,   // px/ms
     friction: 0.86,
-    catchRadius: 12,
+    catchRadius: 12,  // measured from center-to-cursor
     stopMs: 260
   };
 
   function clamp(v,a,b){ return Math.max(a, Math.min(b, v)); }
 
-  // 2) Center-of-cursor fix:
-  // We anchor runner using its visual center (width/2, height/2).
-  // We'll apply translate(x - cx, y - cy).
-  function getCenterOffset(){
-    const r = runner.getBoundingClientRect();
-    return { cx: r.width / 2, cy: r.height / 2 };
-  }
-  // Use constants (54px) to avoid layout reads each frame
-  const CENTER = { cx: 54/2, cy: 54/2 };
-
-  // 3) Show speech on catch, no other UI.
   let stopUntil = 0;
   let speakUntil = 0;
   let lastSpeak = 0;
 
-  // Facing direction without rotation (head always up); only mirror left/right
+  // Facing direction without rotation; only mirror the man
   let facing = 1;
 
-  // Minimal “walking” squish animation (optional, subtle)
+  // subtle bob while moving
   let bobT = 0;
+
+  function render() {
+    const bob = Math.sin(bobT) * 1.0;
+    runner.style.transform = `translate(${pos.x}px, ${pos.y + bob}px) translate(-50%, -50%)`;
+    man.style.transform = `scaleX(${facing})`;
+  }
 
   function step(now){
     const dt = clamp(now - (step._last || now), 8, 28);
     step._last = now;
 
+    // If no pointer yet, chase the textarea area (stable after refresh)
     if (!hasPointer) {
       const r = note.getBoundingClientRect();
       target.x = r.left + r.width * 0.75;
@@ -237,7 +215,6 @@
       const dy = target.y - pos.y;
       const dist = Math.hypot(dx, dy) || 1;
 
-      // face by x only
       if (Math.abs(dx) > 2) facing = dx >= 0 ? 1 : -1;
 
       const ax = (dx / dist) * cfg.accel * dt * speedMul;
@@ -256,32 +233,28 @@
       pos.x += vel.x;
       pos.y += vel.y;
 
-      // keep inside viewport (with center accounted)
-      pos.x = clamp(pos.x, CENTER.cx, window.innerWidth - CENTER.cx);
-      pos.y = clamp(pos.y, CENTER.cy, window.innerHeight - CENTER.cy);
+      // Keep the CENTER inside viewport
+      pos.x = clamp(pos.x, 0, window.innerWidth);
+      pos.y = clamp(pos.y, 0, window.innerHeight);
 
-      // Catch: stop exactly on cursor center
+      // Catch: snap center exactly to cursor center
       if (dist < cfg.catchRadius) {
-        // snap center to cursor
         pos.x = target.x;
         pos.y = target.y;
-
         vel.x = 0; vel.y = 0;
         stopUntil = now + cfg.stopMs;
 
-        // 3) show message on catch
-        // show it briefly, but don't spam continuously while user stays still
-        if (now - lastSpeak > 600) {
+        // Speak on catch (but not spamming every frame)
+        if (now - lastSpeak > 650) {
           lastSpeak = now;
-          speakUntil = now + 1200;
+          speakUntil = now + 1400;
           bubble.classList.add("on");
         }
       }
 
-      // subtle walk bobbing
-      bobT += dt * 0.01 * (0.6 + (Math.min(1, sp/(maxV+1e-6))) * 2.0);
-    } else {
-      // when stopped, keep bubble visibility timer running
+      // bob only when moving
+      const speed01 = clamp(sp / (maxV + 1e-6), 0, 1);
+      bobT += dt * 0.01 * (0.6 + speed01 * 2.0);
     }
 
     // Hide bubble when time expires
@@ -289,11 +262,7 @@
       bubble.classList.remove("on");
     }
 
-    const bob = Math.sin(bobT) * 1.0;
-    // Render: translate to (pos - center), mirror via scaleX, NO rotation.
-    runner.style.transform =
-      `translate(${(pos.x - CENTER.cx)}px, ${(pos.y - CENTER.cy) + bob}px) scaleX(${facing})`;
-
+    render();
     requestAnimationFrame(step);
   }
 
@@ -302,7 +271,8 @@
     if (e.key.toLowerCase() === "q") fast = !fast;
   });
 
-  requestAnimationFrame(step);
+  // Start after one frame to ensure layout is ready (helps on refresh)
+  requestAnimationFrame(() => requestAnimationFrame(step));
 })();
 </script>
 </body>
