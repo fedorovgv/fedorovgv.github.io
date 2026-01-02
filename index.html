@@ -23,57 +23,74 @@
       z-index: 10;
     }
 
+    /* --- Little man container --- */
     .runner{
       position: fixed;
       left: 0; top: 0;
-      width: 56px; height: 56px;
+      width: 86px; height: 86px;              /* bigger so leg motion is visible */
       transform: translate(-50%, -50%);
       pointer-events: none;
       z-index: 1000;
-      will-change: left, top, transform, opacity, filter;
       filter: drop-shadow(0 10px 10px rgba(0,0,0,0.10));
+      will-change: left, top;
     }
+
     .man{
-      width: 56px; height: 56px;
+      width: 86px; height: 86px;
       transform-origin: 50% 50%;
       transform: scaleX(1);
+      will-change: transform, opacity;
     }
-    .man svg { width: 56px; height: 56px; display: block; }
+    .man svg { width: 86px; height: 86px; display: block; }
 
-    /* Yellow body vanish on death */
+    /* death: yellow disappears quickly */
     .runner.dying .man{
       opacity: 0;
-      transform: scaleX(var(--face, 1)) scale(0.88);
+      transform: scaleX(var(--face, 1)) scale(0.92);
       transition: opacity 140ms ease, transform 180ms ease;
     }
 
-    /* Soul (more visible + slower ascent) */
-    .soul{
-      position: fixed;
-      left: 0; top: 0;
-      width: 58px; height: 58px;
-      transform: translate(-50%, -50%);
-      pointer-events: none;
-      z-index: 1500;
+    /* --- Running animation control --- */
+    .runner .anim {
+      animation-duration: var(--runDur, 420ms);
+      animation-timing-function: ease-in-out;
+      animation-iteration-count: infinite;
+      animation-direction: alternate;
+      animation-play-state: paused; /* only when moving */
+    }
+    .runner.moving .anim { animation-play-state: running; }
 
-      /* More visible: brighter + outline + glow */
-      opacity: 0;
-      filter:
-        drop-shadow(0 12px 18px rgba(0,0,0,0.08))
-        drop-shadow(0 0 10px rgba(255,255,255,0.90));
-      will-change: left, top, opacity, filter;
-    }
-    .soul svg { width: 58px; height: 58px; display: block; }
-    .soul.on{
-      opacity: 1;
-      transition: opacity 140ms ease;
-    }
+    /* swing + knee bend */
+    .thighL { animation-name: thighL; }
+    .thighR { animation-name: thighR; }
+
+    .shinL  { animation-name: shinL;  }
+    .shinR  { animation-name: shinR;  }
+
+    .armL   { animation-name: armL;   }
+    .armR   { animation-name: armR;   }
+
+    /* opposite phase */
+    .thighR, .shinR, .armR { animation-delay: calc(var(--runDur, 420ms) * -0.5); }
+
+    /* Make transforms behave predictably on SVG groups */
+    svg g { transform-box: fill-box; transform-origin: 50% 15%; }
+
+    @keyframes thighL { 0% { transform: rotate(-22deg); } 100% { transform: rotate(18deg); } }
+    @keyframes thighR { 0% { transform: rotate(18deg); } 100% { transform: rotate(-22deg); } }
+
+    /* shin bends more when leg is forward */
+    @keyframes shinL  { 0% { transform: rotate(38deg); } 100% { transform: rotate(-8deg); } }
+    @keyframes shinR  { 0% { transform: rotate(-8deg); } 100% { transform: rotate(38deg); } }
+
+    @keyframes armL   { 0% { transform: rotate(16deg); } 100% { transform: rotate(-20deg); } }
+    @keyframes armR   { 0% { transform: rotate(-20deg); } 100% { transform: rotate(16deg); } }
 
     /* Speech bubble */
     .bubble{
       position:absolute;
-      left: 60px;
-      top: -6px;
+      left: 88px;
+      top: 10px;
       max-width: 280px;
       padding: 8px 10px;
       border-radius: 14px;
@@ -100,7 +117,27 @@
       transform: rotate(45deg);
     }
 
-    /* Fireball explosion */
+    /* --- Soul (more visible + slow) --- */
+    .soul{
+      position: fixed;
+      left: 0; top: 0;
+      width: 92px; height: 92px;
+      transform: translate(-50%, -50%) scale(1);
+      pointer-events: none;
+      z-index: 1500;
+      opacity: 0;
+      filter:
+        drop-shadow(0 10px 18px rgba(0,0,0,0.10))
+        drop-shadow(0 0 12px rgba(255,255,255,0.95));
+      will-change: left, top, opacity;
+    }
+    .soul svg { width: 92px; height: 92px; display: block; }
+    .soul.on{
+      opacity: 1;
+      transition: opacity 180ms ease;
+    }
+
+    /* --- Explosion visuals (fireball) --- */
     .boom{
       position: fixed;
       left: 0; top: 0;
@@ -170,7 +207,6 @@
       animation: smoke 980ms cubic-bezier(.12,.8,.18,1) forwards;
       mix-blend-mode: normal;
     }
-
     @keyframes flash{
       0%   { transform: translate(-50%, -50%) scale(0.12); opacity: 0.95; }
       35%  { transform: translate(-50%, -50%) scale(1.25); opacity: 0.75; }
@@ -195,348 +231,394 @@
 <body>
   <header>DL engineer</header>
 
-  <script>
-  (() => {
-    const MAX_MEN = 15;
-    const EXPLOSION_RADIUS = 130;
-    const HEADER_H = 44;
+<script>
+(() => {
+  const MAX_MEN = 15;
+  const EXPLOSION_RADIUS = 140;
+  const HEADER_H = 44;
 
-    const prefersReducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
-    const CFG = {
-      accel: prefersReducedMotion ? 0.004 : 0.020,
-      maxSpeed: prefersReducedMotion ? 0.45 : 1.60,
-      friction: 0.86,
-      catchRadius: 12,
-      stopMs: 240,
-      speakMs: 1300,
-      speakCooldownMs: 650,
+  const prefersReducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+  const CFG = {
+    accel: prefersReducedMotion ? 0.004 : 0.020,
+    maxSpeed: prefersReducedMotion ? 0.45 : 1.70,
+    friction: 0.86,
+    catchRadius: 14,
+    stopMs: 240,
+    speakMs: 1300,
+    speakCooldownMs: 650,
+  };
+
+  // Souls: slower + longer
+  const SOUL = {
+    risePxPerMs: 0.34,   // slower
+    lifeMs: 3600,
+    driftX: 180,
+    waveAmp: [18, 26],
+    waveFreq: [0.007, 0.011],
+    fadeStart: 1300,
+  };
+
+  window.addEventListener("contextmenu", (e) => e.preventDefault());
+
+  let target = { x: innerWidth * 0.6, y: innerHeight * 0.6 };
+  let hasPointer = false;
+  function setTarget(x, y){ hasPointer = true; target.x = x; target.y = y; }
+  addEventListener("pointermove", (e) => setTarget(e.clientX, e.clientY), { passive: true });
+
+  const men = [];
+
+  // --- Smooth stickman like your reference, but “clean” ---
+  // We draw with thick strokes (round caps) to get a soft silhouette
+  function manSVG({ stroke, headFill, outlineStroke, outlineWidth, strokeWidth }) {
+    const sw = strokeWidth ?? 12;
+    const ow = outlineWidth ?? (sw + 4);
+    const hasOutline = !!outlineStroke;
+
+    // Base groups for animation: thighs, shins, arms.
+    // Coordinates tuned for a running pose.
+    const skeleton = (s, width, extraAttrs="") => `
+      <g fill="none" stroke="${s}" stroke-width="${width}" stroke-linecap="round" stroke-linejoin="round" ${extraAttrs}>
+        <!-- torso + neck -->
+        <path d="M32 26 L32 44" />
+        <!-- oval-ish body hint (a subtle curve) -->
+        <path d="M32 30 C28 34, 28 38, 32 42" opacity="0.0"/>
+      </g>
+    `;
+
+    const limbs = (s, width) => `
+      <g fill="none" stroke="${s}" stroke-width="${width}" stroke-linecap="round" stroke-linejoin="round">
+        <!-- Arms -->
+        <g class="anim armL" style="transform-origin: 30px 30px;">
+          <path d="M30 30 L19 36" />
+        </g>
+        <g class="anim armR" style="transform-origin: 34px 30px;">
+          <path d="M34 30 L45 36" />
+        </g>
+
+        <!-- Legs: each leg is thigh group (anim) + nested shin group (anim) -->
+        <g class="anim thighL" style="transform-origin: 30px 44px;">
+          <path d="M30 44 L25 54" />
+          <g class="anim shinL" style="transform-origin: 25px 54px;">
+            <path d="M25 54 L30 62" />
+          </g>
+        </g>
+
+        <g class="anim thighR" style="transform-origin: 34px 44px;">
+          <path d="M34 44 L39 54" />
+          <g class="anim shinR" style="transform-origin: 39px 54px;">
+            <path d="M39 54 L35 62" />
+          </g>
+        </g>
+      </g>
+    `;
+
+    // Head + neck: round
+    const head = (fill) => `<circle cx="32" cy="16" r="11" fill="${fill}" />`;
+    const neck = (s, width) => `<path d="M32 26 L32 28" stroke="${s}" stroke-width="${width}" stroke-linecap="round" />`;
+
+    // Build SVG with optional outline layer (for souls visibility)
+    const outlineLayer = hasOutline ? `
+      <g>
+        ${head("#fff")}
+        ${neck(outlineStroke, ow)}
+        ${skeleton(outlineStroke, ow)}
+        ${limbs(outlineStroke, ow)}
+      </g>
+    ` : "";
+
+    const mainLayer = `
+      <g>
+        ${head(headFill)}
+        ${neck(stroke, sw)}
+        ${skeleton(stroke, sw)}
+        ${limbs(stroke, sw)}
+      </g>
+    `;
+
+    return `
+      <svg viewBox="0 0 64 64" aria-hidden="true">
+        ${outlineLayer}
+        ${mainLayer}
+      </svg>
+    `;
+  }
+
+  function makeRunnerElement(){
+    const el = document.createElement("div");
+    el.className = "runner";
+
+    const man = document.createElement("div");
+    man.className = "man";
+    man.innerHTML = manSVG({
+      stroke: "#FFD400",
+      headFill: "#FFD400",
+      strokeWidth: 12
+    });
+
+    const bubble = document.createElement("div");
+    bubble.className = "bubble";
+    bubble.textContent = "smnth will be later here, now go away";
+
+    el.appendChild(man);
+    el.appendChild(bubble);
+    document.body.appendChild(el);
+
+    return { el, man, bubble };
+  }
+
+  function clamp(v,a,b){ return Math.max(a, Math.min(b, v)); }
+
+  function spawnMan(x, y){
+    if (men.length >= MAX_MEN) return;
+    y = clamp(y, HEADER_H, innerHeight);
+    const { el, man, bubble } = makeRunnerElement();
+    const m = {
+      el, man, bubble,
+      alive: true,
+      dying: false,
+      pos: { x, y },
+      vel: { x: 0, y: 0 },
+      facing: 1,
+      bobT: 0,
+      stopUntil: 0,
+      speakUntil: 0,
+      lastSpeak: 0,
     };
+    el.style.left = x + "px";
+    el.style.top  = y + "px";
+    el.style.setProperty("--runDur", "420ms");
+    men.push(m);
+  }
 
-    // Soul tuning (slower + more present)
-    const SOUL = {
-      risePxPerMs: 0.55,        // slower than before (was ~1.0+)
-      lifeMs: 2600,             // longer life
-      driftX: 180,              // sideways drift range
-      waveAmp: [18, 26],        // bigger wave so it's noticeable
-      waveFreq: [0.008, 0.012], // slower wave
-      fadeStart: 900,           // start fading later
-      stroke: "rgba(0,0,0,0.18)"// subtle outline
-    };
+  function spawnSoul(fromX, fromY, facing){
+    const s = document.createElement("div");
+    s.className = "soul";
+    s.style.left = fromX + "px";
+    s.style.top  = fromY + "px";
+    s.innerHTML = manSVG({
+      stroke: "#FFFFFF",
+      headFill: "#FFFFFF",
+      outlineStroke: "rgba(0,0,0,0.28)",   // strong outline so it reads on white
+      outlineWidth: 18,
+      strokeWidth: 14
+    });
+    document.body.appendChild(s);
 
-    window.addEventListener("contextmenu", (e) => e.preventDefault());
+    const svg = s.querySelector("svg");
+    svg.style.transformOrigin = "50% 50%";
+    svg.style.transform = `scaleX(${facing})`;
 
-    let target = { x: window.innerWidth * 0.6, y: window.innerHeight * 0.6 };
-    let hasPointer = false;
-    function setTarget(x, y) { hasPointer = true; target.x = x; target.y = y; }
-    window.addEventListener("pointermove", (e) => setTarget(e.clientX, e.clientY), { passive: true });
+    requestAnimationFrame(() => s.classList.add("on"));
 
-    const men = [];
+    const driftX = (Math.random() - 0.5) * SOUL.driftX;
+    const waveA  = SOUL.waveAmp[0] + Math.random() * (SOUL.waveAmp[1] - SOUL.waveAmp[0]);
+    const waveF  = SOUL.waveFreq[0] + Math.random() * (SOUL.waveFreq[1] - SOUL.waveFreq[0]);
+    const rise   = SOUL.risePxPerMs * (0.9 + Math.random() * 0.25);
+    const lifeMs = SOUL.lifeMs * (0.9 + Math.random() * 0.2);
 
-    function manSVG(fill, outline = null) {
-      const stroke = outline ? ` stroke="${outline}" stroke-width="1.2"` : "";
-      return `
-        <svg viewBox="0 0 64 64" aria-hidden="true">
-          <circle cx="32" cy="14" r="9.2" fill="${fill}"${stroke}/>
-          <ellipse cx="32" cy="33" rx="10.8" ry="14.2" fill="${fill}"${stroke}/>
-          <path d="M23.5 28
-                   C16.8 30 12.5 35 11.6 38.8
-                   C11.0 41.5 14.2 43.3 16.3 41.0
-                   C18.7 38.3 20.7 35.6 26.2 34.6
-                   Z" fill="${fill}"${stroke}/>
-          <path d="M40.5 28
-                   C47.2 30 51.5 35 52.4 38.8
-                   C53.0 41.5 49.8 43.3 47.7 41.0
-                   C45.3 38.3 43.3 35.6 37.8 34.6
-                   Z" fill="${fill}"${stroke}/>
-          <path d="M29.3 44
-                   C25.0 50.0 22.0 54.5 21.2 58
-                   C20.8 60.6 24.5 61.4 26.3 59.0
-                   C29.4 55.0 31.6 50.2 33.4 47.0
-                   Z" fill="${fill}"${stroke}/>
-          <path d="M34.7 44
-                   C39.0 50.0 42.0 54.5 42.8 58
-                   C43.2 60.6 39.5 61.4 37.7 59.0
-                   C34.6 55.0 32.4 50.2 30.6 47.0
-                   Z" fill="${fill}"${stroke}/>
-        </svg>
-      `;
-    }
+    let t0 = null;
+    const x0 = fromX, y0 = fromY;
 
-    function makeRunnerElement() {
-      const el = document.createElement("div");
-      el.className = "runner";
+    function step(ts){
+      if (t0 === null) t0 = ts;
+      const u = ts - t0;
 
-      const man = document.createElement("div");
-      man.className = "man";
-      man.innerHTML = manSVG("#FFD400");
+      const nx = x0 + (driftX * (u / lifeMs)) + Math.sin(u * waveF) * waveA;
+      const ny = y0 - (u * rise);
 
-      const bubble = document.createElement("div");
-      bubble.className = "bubble";
-      bubble.textContent = "smnth will be later here, now go away";
+      s.style.left = nx + "px";
+      s.style.top  = ny + "px";
 
-      el.appendChild(man);
-      el.appendChild(bubble);
-      document.body.appendChild(el);
+      // fade later, slower
+      const fadeU = Math.max(0, u - SOUL.fadeStart);
+      const alpha = Math.max(0, 1.0 - (fadeU / (lifeMs - SOUL.fadeStart)));
+      s.style.opacity = alpha.toFixed(3);
 
-      return { el, man, bubble };
-    }
-
-    function clamp(v,a,b){ return Math.max(a, Math.min(b, v)); }
-
-    function spawnMan(x, y) {
-      if (men.length >= MAX_MEN) return;
-      y = clamp(y, HEADER_H, window.innerHeight);
-      const { el, man, bubble } = makeRunnerElement();
-      const m = {
-        el, man, bubble,
-        alive: true,
-        dying: false,
-        pos: { x, y },
-        vel: { x: 0, y: 0 },
-        facing: 1,
-        bobT: 0,
-        stopUntil: 0,
-        speakUntil: 0,
-        lastSpeak: 0,
-      };
-      el.style.left = x + "px";
-      el.style.top  = y + "px";
-      men.push(m);
-    }
-
-    function spawnSoul(fromX, fromY, facing) {
-      const s = document.createElement("div");
-      s.className = "soul";
-      s.style.left = fromX + "px";
-      s.style.top  = fromY + "px";
-      // white body + subtle outline to make it visible on white background
-      s.innerHTML = manSVG("#FFFFFF", SOUL.stroke);
-      document.body.appendChild(s);
-
-      // facing
-      const svg = s.querySelector("svg");
-      svg.style.transformOrigin = "50% 50%";
-      svg.style.transform = `scaleX(${facing})`;
-
-      // make it slightly bigger so it reads well
-      s.style.transform = `translate(-50%, -50%) scale(0.95)`;
-
-      requestAnimationFrame(() => s.classList.add("on"));
-
-      const driftX = (Math.random() - 0.5) * SOUL.driftX;
-      const waveA  = SOUL.waveAmp[0] + Math.random() * (SOUL.waveAmp[1] - SOUL.waveAmp[0]);
-      const waveF  = SOUL.waveFreq[0] + Math.random() * (SOUL.waveFreq[1] - SOUL.waveFreq[0]);
-
-      const rise   = SOUL.risePxPerMs * (0.90 + Math.random() * 0.25); // still slow, slight variance
-      const lifeMs = SOUL.lifeMs * (0.90 + Math.random() * 0.20);
-
-      let x0 = fromX;
-      let y0 = fromY;
-      let t0 = null;
-
-      function step(ts) {
-        if (t0 === null) t0 = ts;
-        const u = ts - t0;
-
-        // Smooth drift + sine wave
-        const nx = x0 + (driftX * (u / lifeMs)) + Math.sin(u * waveF) * waveA;
-        const ny = y0 - (u * rise);
-
-        s.style.left = nx + "px";
-        s.style.top  = ny + "px";
-
-        // fade later + slower
-        const fadeU = Math.max(0, u - SOUL.fadeStart);
-        const alpha = Math.max(0, 1.0 - (fadeU / (lifeMs - SOUL.fadeStart)));
-        s.style.opacity = alpha.toFixed(3);
-
-        // stop when out of screen or lifetime ended
-        if (ny < -60 || u >= lifeMs || alpha <= 0.01) {
-          s.remove();
-          return;
-        }
-        requestAnimationFrame(step);
+      if (ny < -80 || u >= lifeMs || alpha <= 0.01) {
+        s.remove();
+        return;
       }
       requestAnimationFrame(step);
     }
+    requestAnimationFrame(step);
+  }
 
-    function killMan(m) {
-      if (!m.alive || m.dying) return;
-      m.dying = true;
+  function killMan(m){
+    if (!m.alive || m.dying) return;
+    m.dying = true;
 
-      const facing = m.facing;
+    const facing = m.facing;
+    m.el.style.setProperty("--face", String(facing));
+    m.el.classList.add("dying");
 
-      m.el.style.setProperty("--face", String(facing));
-      m.el.classList.add("dying");
+    setTimeout(() => spawnSoul(m.pos.x, m.pos.y, facing), 80);
 
-      // soul appears a little earlier & more visible
-      setTimeout(() => spawnSoul(m.pos.x, m.pos.y, facing), 70);
+    setTimeout(() => {
+      m.alive = false;
+      m.el.remove();
+      const idx = men.indexOf(m);
+      if (idx >= 0) men.splice(idx, 1);
+    }, 240);
+  }
 
-      setTimeout(() => {
-        m.alive = false;
-        m.el.remove();
-        const idx = men.indexOf(m);
-        if (idx >= 0) men.splice(idx, 1);
-      }, 240);
+  // Explosion visuals
+  function fireballExplosion(x, y){
+    const b = document.createElement("div");
+    b.className = "boom";
+    b.style.left = x + "px";
+    b.style.top  = y + "px";
+
+    const shock = document.createElement("div");
+    shock.className = "shock";
+    const flash = document.createElement("div");
+    flash.className = "flash";
+    b.appendChild(flash);
+    b.appendChild(shock);
+
+    const puffs = 9;
+    for (let i = 0; i < puffs; i++) {
+      const puff = document.createElement("div");
+      puff.className = "puff";
+      const ang = (Math.PI * 2) * (i / puffs) + (Math.random() * 0.35);
+      const r = 20 + Math.random() * 34;
+      puff.style.setProperty("--dx", (Math.cos(ang) * r) + "px");
+      puff.style.setProperty("--dy", (Math.sin(ang) * r) + "px");
+      puff.style.setProperty("--s", (26 + Math.random() * 34) + "px");
+      puff.style.animationDuration = (680 + Math.random() * 240) + "ms";
+      b.appendChild(puff);
     }
 
-    // Explosion visuals (unchanged)
-    function fireballExplosion(x, y) {
-      const b = document.createElement("div");
-      b.className = "boom";
-      b.style.left = x + "px";
-      b.style.top  = y + "px";
-
-      const shock = document.createElement("div");
-      shock.className = "shock";
-      const flash = document.createElement("div");
-      flash.className = "flash";
-      b.appendChild(flash);
-      b.appendChild(shock);
-
-      const puffs = 9;
-      for (let i = 0; i < puffs; i++) {
-        const puff = document.createElement("div");
-        puff.className = "puff";
-
-        const ang = (Math.PI * 2) * (i / puffs) + (Math.random() * 0.35);
-        const r = 20 + Math.random() * 34;
-        const dx = Math.cos(ang) * r;
-        const dy = Math.sin(ang) * r;
-
-        const size = (26 + Math.random() * 34) + "px";
-        puff.style.setProperty("--s", size);
-        puff.style.setProperty("--dx", dx + "px");
-        puff.style.setProperty("--dy", dy + "px");
-        puff.style.animationDuration = (680 + Math.random() * 240) + "ms";
-
-        b.appendChild(puff);
-      }
-
-      const smokeCount = 6;
-      for (let i = 0; i < smokeCount; i++) {
-        const s = document.createElement("div");
-        s.className = "smoke";
-
-        const ang = (Math.PI * 2) * (i / smokeCount) + (Math.random() * 0.6);
-        const r = 30 + Math.random() * 44;
-        const dx = Math.cos(ang) * r;
-        const dy = Math.sin(ang) * r - (8 + Math.random() * 16);
-
-        const size = (34 + Math.random() * 44) + "px";
-        s.style.setProperty("--s", size);
-        s.style.setProperty("--dx", dx + "px");
-        s.style.setProperty("--dy", dy + "px");
-        s.style.animationDelay = (60 + Math.random() * 90) + "ms";
-
-        b.appendChild(s);
-      }
-
-      document.body.appendChild(b);
-      setTimeout(() => b.remove(), 1100);
+    const smokeCount = 6;
+    for (let i = 0; i < smokeCount; i++) {
+      const s = document.createElement("div");
+      s.className = "smoke";
+      const ang = (Math.PI * 2) * (i / smokeCount) + (Math.random() * 0.6);
+      const r = 30 + Math.random() * 44;
+      s.style.setProperty("--dx", (Math.cos(ang) * r) + "px");
+      s.style.setProperty("--dy", (Math.sin(ang) * r - (8 + Math.random() * 16)) + "px");
+      s.style.setProperty("--s", (34 + Math.random() * 44) + "px");
+      s.style.animationDelay = (60 + Math.random() * 90) + "ms";
+      b.appendChild(s);
     }
 
-    function explode(x, y) {
-      fireballExplosion(x, y);
-      for (const m of [...men]) {
-        if (!m.alive) continue;
-        const dx = m.pos.x - x;
-        const dy = m.pos.y - y;
-        if (Math.hypot(dx, dy) <= EXPLOSION_RADIUS) killMan(m);
-      }
+    document.body.appendChild(b);
+    setTimeout(() => b.remove(), 1100);
+  }
+
+  function explode(x, y){
+    fireballExplosion(x, y);
+    for (const m of [...men]) {
+      if (!m.alive) continue;
+      const dx = m.pos.x - x;
+      const dy = m.pos.y - y;
+      if (Math.hypot(dx, dy) <= EXPLOSION_RADIUS) killMan(m);
+    }
+  }
+
+  // Controls:
+  // LMB: spawn (<=15) + target
+  // RMB: explosion
+  addEventListener("pointerdown", (e) => {
+    if (e.button === 2) {
+      e.preventDefault();
+      explode(e.clientX, e.clientY);
+      return;
+    }
+    setTarget(e.clientX, e.clientY);
+    spawnMan(e.clientX, e.clientY);
+  }, { passive: false });
+
+  // Seed a couple
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    spawnMan(innerWidth * 0.30, innerHeight * 0.58);
+    spawnMan(innerWidth * 0.22, innerHeight * 0.66);
+    target = { x: innerWidth * 0.70, y: innerHeight * 0.42 };
+  }));
+
+  function tick(now){
+    const dt = clamp(now - (tick._last || now), 8, 28);
+    tick._last = now;
+
+    if (!hasPointer) {
+      target.x = innerWidth * 0.70;
+      target.y = innerHeight * 0.42;
     }
 
-    // Controls
-    window.addEventListener("pointerdown", (e) => {
-      if (e.button === 2) {
-        e.preventDefault();
-        explode(e.clientX, e.clientY);
-        return;
-      }
-      setTarget(e.clientX, e.clientY);
-      spawnMan(e.clientX, e.clientY);
-    }, { passive: false });
+    for (const m of men) {
+      if (!m.alive || m.dying) continue;
 
-    // Seed
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        spawnMan(window.innerWidth * 0.30, window.innerHeight * 0.55);
-        spawnMan(window.innerWidth * 0.22, window.innerHeight * 0.62);
-        target = { x: window.innerWidth * 0.70, y: window.innerHeight * 0.40 };
-      });
-    });
+      const stopped = now < m.stopUntil;
 
-    function tick(now) {
-      const dt = clamp(now - (tick._last || now), 8, 28);
-      tick._last = now;
+      if (!stopped) {
+        const dx = target.x - m.pos.x;
+        const dy = target.y - m.pos.y;
+        const dist = Math.hypot(dx, dy) || 1;
 
-      if (!hasPointer) {
-        target.x = window.innerWidth * 0.70;
-        target.y = window.innerHeight * 0.40;
-      }
+        if (Math.abs(dx) > 2) m.facing = dx >= 0 ? 1 : -1;
 
-      for (const m of men) {
-        if (!m.alive || m.dying) continue;
+        const ax = (dx / dist) * CFG.accel * dt;
+        const ay = (dy / dist) * CFG.accel * dt;
 
-        const stopped = now < m.stopUntil;
-        if (!stopped) {
-          const dx = target.x - m.pos.x;
-          const dy = target.y - m.pos.y;
-          const dist = Math.hypot(dx, dy) || 1;
+        m.vel.x = (m.vel.x + ax) * CFG.friction;
+        m.vel.y = (m.vel.y + ay) * CFG.friction;
 
-          if (Math.abs(dx) > 2) m.facing = dx >= 0 ? 1 : -1;
-
-          const ax = (dx / dist) * CFG.accel * dt;
-          const ay = (dy / dist) * CFG.accel * dt;
-
-          m.vel.x = (m.vel.x + ax) * CFG.friction;
-          m.vel.y = (m.vel.y + ay) * CFG.friction;
-
-          const sp = Math.hypot(m.vel.x, m.vel.y) || 1;
-          const maxV = CFG.maxSpeed * dt;
-          if (sp > maxV) {
-            m.vel.x = (m.vel.x / sp) * maxV;
-            m.vel.y = (m.vel.y / sp) * maxV;
-          }
-
-          m.pos.x += m.vel.x;
-          m.pos.y += m.vel.y;
-
-          m.pos.x = clamp(m.pos.x, 0, window.innerWidth);
-          m.pos.y = clamp(m.pos.y, HEADER_H, window.innerHeight);
-
-          if (dist < CFG.catchRadius) {
-            m.pos.x = target.x;
-            m.pos.y = target.y;
-            m.vel.x = 0; m.vel.y = 0;
-            m.stopUntil = now + CFG.stopMs;
-
-            if (now - m.lastSpeak > CFG.speakCooldownMs) {
-              m.lastSpeak = now;
-              m.speakUntil = now + CFG.speakMs;
-              m.bubble.classList.add("on");
-            }
-          }
-
-          const speed01 = clamp(sp / (maxV + 1e-6), 0, 1);
-          m.bobT += dt * 0.01 * (0.6 + speed01 * 2.0);
+        const sp = Math.hypot(m.vel.x, m.vel.y) || 1;
+        const maxV = CFG.maxSpeed * dt;
+        if (sp > maxV) {
+          m.vel.x = (m.vel.x / sp) * maxV;
+          m.vel.y = (m.vel.y / sp) * maxV;
         }
 
-        if (m.bubble.classList.contains("on") && now > m.speakUntil) {
-          m.bubble.classList.remove("on");
-        }
+        m.pos.x += m.vel.x;
+        m.pos.y += m.vel.y;
 
-        const bob = Math.sin(m.bobT) * 1.0;
-        m.el.style.left = m.pos.x + "px";
-        m.el.style.top  = (m.pos.y + bob) + "px";
-        m.man.style.transform = `scaleX(${m.facing})`;
+        m.pos.x = clamp(m.pos.x, 0, innerWidth);
+        m.pos.y = clamp(m.pos.y, HEADER_H, innerHeight);
+
+        // Catch
+        if (dist < CFG.catchRadius) {
+          m.pos.x = target.x;
+          m.pos.y = target.y;
+          m.vel.x = 0; m.vel.y = 0;
+          m.stopUntil = now + CFG.stopMs;
+
+          if (now - m.lastSpeak > CFG.speakCooldownMs) {
+            m.lastSpeak = now;
+            m.speakUntil = now + CFG.speakMs;
+            m.bubble.classList.add("on");
+          }
+        }
       }
 
-      requestAnimationFrame(tick);
+      if (m.bubble.classList.contains("on") && now > m.speakUntil) {
+        m.bubble.classList.remove("on");
+      }
+
+      // --- Run animation speed based on actual movement ---
+      const speedNow = Math.hypot(m.vel.x, m.vel.y);
+      const moving = !stopped && speedNow > 0.12;
+
+      if (moving) m.el.classList.add("moving");
+      else m.el.classList.remove("moving");
+
+      // Shorter duration when faster => faster leg cycle
+      // clamp duration 300..520ms
+      const dur = clamp(520 - speedNow * 140, 300, 520);
+      m.el.style.setProperty("--runDur", `${dur.toFixed(0)}ms`);
+
+      // slight vertical bob
+      m.bobT += dt * 0.01 * (moving ? 1.8 : 0.6);
+      const bob = Math.sin(m.bobT) * (moving ? 1.4 : 0.6);
+
+      m.el.style.left = m.pos.x + "px";
+      m.el.style.top  = (m.pos.y + bob) + "px";
+      m.man.style.transform = `scaleX(${m.facing})`;
     }
 
     requestAnimationFrame(tick);
-  })();
-  </script>
+  }
+  requestAnimationFrame(tick);
+})();
+</script>
 </body>
 </html>
