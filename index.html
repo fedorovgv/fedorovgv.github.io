@@ -1,0 +1,335 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title> . </title>
+  <style>
+    :root { color-scheme: dark; }
+    html, body { height: 100%; margin: 0; background: #05060a; }
+    canvas { width: 100%; height: 100%; display: block; }
+    .overlay {
+      position: fixed; inset: 0; pointer-events: none;
+      display: grid; place-items: center;
+      padding: 4vw;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial;
+      letter-spacing: 0.2px;
+    }
+    .card {
+      pointer-events: auto;
+      max-width: 900px;
+      width: min(900px, 92vw);
+      border-radius: 20px;
+      background: rgba(10, 12, 18, 0.55);
+      border: 1px solid rgba(255,255,255,0.08);
+      box-shadow: 0 30px 80px rgba(0,0,0,0.45);
+      backdrop-filter: blur(10px);
+      padding: 22px 22px 18px;
+    }
+    h1 {
+      margin: 0 0 10px;
+      font-size: clamp(20px, 3.2vw, 34px);
+      line-height: 1.15;
+    }
+    p { margin: 0 0 14px; color: rgba(255,255,255,0.78); line-height: 1.45; }
+    .row { display: flex; gap: 10px; flex-wrap: wrap; }
+    a.btn {
+      pointer-events: auto;
+      text-decoration: none;
+      color: rgba(255,255,255,0.9);
+      border: 1px solid rgba(255,255,255,0.14);
+      background: rgba(255,255,255,0.06);
+      padding: 10px 12px;
+      border-radius: 12px;
+      font-size: 14px;
+      transition: transform .12s ease, background .12s ease, border-color .12s ease;
+      display: inline-flex; gap: 8px; align-items: center;
+    }
+    a.btn:hover { transform: translateY(-1px); background: rgba(255,255,255,0.09); border-color: rgba(255,255,255,0.22); }
+    .tiny {
+      margin-top: 10px;
+      font-size: 12px;
+      color: rgba(255,255,255,0.55);
+      display: flex; gap: 10px; flex-wrap: wrap;
+      align-items: center;
+    }
+    code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.10);
+      padding: 2px 6px; border-radius: 8px;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="c"></canvas>
+
+  <div class="overlay">
+    <div class="card">
+      <h1>GPU Pulse</h1>
+      <p>
+        A tiny “GPU compute art” demo: a fragment shader draws animated interference waves.
+        Move your mouse (or touch) to bend the field — like a visualization of parallel GPU lanes.
+      </p>
+      <div class="row">
+        <a class="btn" href="#" onclick="toggleQuality(); return false;">⚡ Toggle quality</a>
+        <a class="btn" href="#" onclick="togglePause(); return false;">⏯ Pause / Play</a>
+        <a class="btn" href="#" onclick="randomize(); return false;">🎲 Randomize</a>
+      </div>
+      <div class="tiny">
+        <span>WebGL: <code>fragment shader</code></span>
+        <span>Tip: press <code>Q</code> for quality, <code>Space</code> pause, <code>R</code> randomize</span>
+      </div>
+    </div>
+  </div>
+
+<script>
+(() => {
+  const canvas = document.getElementById('c');
+  const gl = canvas.getContext('webgl', { antialias: false, alpha: false, preserveDrawingBuffer: false });
+  if (!gl) {
+    document.body.innerHTML = "<div style='color:#fff;padding:24px;font-family:system-ui'>WebGL not supported.</div>";
+    return;
+  }
+
+  // ----- Shaders -----
+  const vertSrc = `
+    attribute vec2 aPos;
+    varying vec2 vUv;
+    void main(){
+      vUv = aPos * 0.5 + 0.5;
+      gl_Position = vec4(aPos, 0.0, 1.0);
+    }
+  `;
+
+  // A “compute-ish” shader: interference + pseudo-noise + mouse field
+  const fragSrc = `
+    precision highp float;
+    varying vec2 vUv;
+    uniform vec2 uRes;
+    uniform float uTime;
+    uniform vec2 uMouse;   // normalized [0..1]
+    uniform float uSeed;
+    uniform float uIntensity;
+
+    // Hash / noise helpers (cheap)
+    float hash21(vec2 p){
+      p = fract(p * vec2(123.34, 345.45));
+      p += dot(p, p + 34.345);
+      return fract(p.x * p.y);
+    }
+    float noise(vec2 p){
+      vec2 i = floor(p);
+      vec2 f = fract(p);
+      float a = hash21(i);
+      float b = hash21(i + vec2(1.0, 0.0));
+      float c = hash21(i + vec2(0.0, 1.0));
+      float d = hash21(i + vec2(1.0, 1.0));
+      vec2 u = f*f*(3.0-2.0*f);
+      return mix(a, b, u.x) + (c - a)*u.y*(1.0 - u.x) + (d - b)*u.x*u.y;
+    }
+
+    // Signed distance to a line segment
+    float sdSegment(vec2 p, vec2 a, vec2 b){
+      vec2 pa = p - a, ba = b - a;
+      float h = clamp(dot(pa,ba)/dot(ba,ba), 0.0, 1.0);
+      return length(pa - ba*h);
+    }
+
+    void main() {
+      // aspect-correct coordinates centered at 0
+      vec2 uv = vUv;
+      vec2 p = (uv * 2.0 - 1.0);
+      p.x *= uRes.x / uRes.y;
+
+      // Mouse as a “field source”
+      vec2 m = (uMouse * 2.0 - 1.0);
+      m.x *= uRes.x / uRes.y;
+
+      float t = uTime * 0.65;
+
+      // Warp field (like "compute lanes" bending)
+      float md = length(p - m);
+      float warp = 0.28 / (0.12 + md);
+      p += warp * vec2(
+        sin(2.3*p.y + t*1.4 + uSeed),
+        cos(2.1*p.x - t*1.2 + uSeed*1.7)
+      );
+
+      // Interference pattern (multiple wave sources)
+      float w1 = sin(6.0*length(p + vec2(0.35*sin(t*0.7), 0.25*cos(t*0.9))) - t*3.2);
+      float w2 = sin(7.4*length(p - vec2(0.45*cos(t*0.6), 0.30*sin(t*0.8))) - t*2.6);
+      float w3 = sin(10.0*(p.x*0.7 + p.y*0.9) + t*2.2);
+      float waves = (w1 + w2 + 0.65*w3) / 2.35;
+
+      // Add “compute grain” noise
+      float n = noise(p*3.2 + vec2(t*0.6, -t*0.4) + uSeed*10.0);
+      float grain = (n - 0.5) * 0.35;
+
+      // Create a subtle grid (threads/blocks vibe)
+      vec2 gp = (p * 1.8);
+      vec2 g = abs(fract(gp) - 0.5);
+      float grid = 1.0 - smoothstep(0.46, 0.50, max(g.x, g.y));
+      grid *= 0.18;
+
+      // Draw a "bus line" segment through the center
+      float bus = 1.0 - smoothstep(0.00, 0.02, sdSegment(p, vec2(-1.2, -0.05), vec2(1.2, 0.05)));
+      bus *= 0.22;
+
+      // Energy field
+      float energy = waves + grain + grid + bus;
+
+      // Color mapping (neon-ish)
+      float e = 0.5 + 0.5*energy;
+      e = pow(clamp(e, 0.0, 1.0), 1.35);
+
+      // Chromatic separation for pop
+      float r = smoothstep(0.15, 0.95, e + 0.08*sin(t + p.x*1.6));
+      float gch = smoothstep(0.10, 0.92, e + 0.08*sin(t*1.1 + p.y*1.8));
+      float b = smoothstep(0.12, 0.98, e + 0.08*sin(t*0.9 + (p.x+p.y)*1.2));
+
+      // Vignette
+      float vig = smoothstep(1.35, 0.35, length(p));
+      vec3 col = vec3(r, gch, b) * (0.25 + 1.25*vig);
+
+      // Intensity control
+      col *= uIntensity;
+
+      // Subtle glow
+      col += 0.08 * vec3(0.8, 0.9, 1.2) * pow(clamp(e,0.0,1.0), 3.0);
+
+      // Background lift
+      col += vec3(0.02, 0.02, 0.03);
+
+      gl_FragColor = vec4(col, 1.0);
+    }
+  `;
+
+  function compile(type, src) {
+    const s = gl.createShader(type);
+    gl.shaderSource(s, src);
+    gl.compileShader(s);
+    if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) {
+      const info = gl.getShaderInfoLog(s);
+      gl.deleteShader(s);
+      throw new Error(info);
+    }
+    return s;
+  }
+
+  function link(vs, fs) {
+    const p = gl.createProgram();
+    gl.attachShader(p, vs);
+    gl.attachShader(p, fs);
+    gl.linkProgram(p);
+    if (!gl.getProgramParameter(p, gl.LINK_STATUS)) {
+      const info = gl.getProgramInfoLog(p);
+      gl.deleteProgram(p);
+      throw new Error(info);
+    }
+    return p;
+  }
+
+  let program;
+  try {
+    program = link(compile(gl.VERTEX_SHADER, vertSrc), compile(gl.FRAGMENT_SHADER, fragSrc));
+  } catch (e) {
+    document.body.innerHTML = "<pre style='color:#fff;padding:24px;white-space:pre-wrap'>" + e.message + "</pre>";
+    return;
+  }
+
+  gl.useProgram(program);
+
+  // Fullscreen quad
+  const buf = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
+    -1,-1,  1,-1, -1, 1,
+    -1, 1,  1,-1,  1, 1
+  ]), gl.STATIC_DRAW);
+
+  const aPos = gl.getAttribLocation(program, "aPos");
+  gl.enableVertexAttribArray(aPos);
+  gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 0, 0);
+
+  const uRes = gl.getUniformLocation(program, "uRes");
+  const uTime = gl.getUniformLocation(program, "uTime");
+  const uMouse = gl.getUniformLocation(program, "uMouse");
+  const uSeed = gl.getUniformLocation(program, "uSeed");
+  const uIntensity = gl.getUniformLocation(program, "uIntensity");
+
+  let seed = Math.random() * 1000;
+  let intensity = 1.0;
+
+  // Interaction
+  let mouseX = 0.5, mouseY = 0.5;
+  let paused = false;
+  let hiQuality = true;
+
+  function setMouseFromEvent(e) {
+    const r = canvas.getBoundingClientRect();
+    mouseX = (e.clientX - r.left) / r.width;
+    mouseY = 1.0 - (e.clientY - r.top) / r.height;
+    mouseX = Math.max(0, Math.min(1, mouseX));
+    mouseY = Math.max(0, Math.min(1, mouseY));
+  }
+  window.addEventListener("pointermove", setMouseFromEvent, { passive: true });
+  window.addEventListener("pointerdown", setMouseFromEvent, { passive: true });
+
+  window.addEventListener("keydown", (e) => {
+    if (e.key === " "){ e.preventDefault(); togglePause(); }
+    if (e.key.toLowerCase() === "q") toggleQuality();
+    if (e.key.toLowerCase() === "r") randomize();
+  });
+
+  // Resize handling
+  function resize() {
+    const dpr = hiQuality ? Math.min(2, window.devicePixelRatio || 1) : 1;
+    const w = Math.floor(canvas.clientWidth * dpr);
+    const h = Math.floor(canvas.clientHeight * dpr);
+    if (canvas.width !== w || canvas.height !== h) {
+      canvas.width = w;
+      canvas.height = h;
+      gl.viewport(0, 0, w, h);
+    }
+    gl.uniform2f(uRes, canvas.width, canvas.height);
+  }
+  const ro = new ResizeObserver(resize);
+  ro.observe(canvas);
+
+  // Animation loop
+  let t0 = performance.now();
+  let time = 0;
+
+  function frame(now) {
+    resize();
+    const dt = (now - t0) / 1000;
+    t0 = now;
+    if (!paused) time += dt;
+
+    gl.uniform1f(uTime, time);
+    gl.uniform2f(uMouse, mouseX, mouseY);
+    gl.uniform1f(uSeed, seed);
+    gl.uniform1f(uIntensity, intensity);
+
+    gl.drawArrays(gl.TRIANGLES, 0, 6);
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+
+  // Expose controls (buttons)
+  window.toggleQuality = () => {
+    hiQuality = !hiQuality;
+    resize();
+  };
+  window.togglePause = () => {
+    paused = !paused;
+  };
+  window.randomize = () => {
+    seed = Math.random() * 1000;
+    intensity = 0.85 + Math.random() * 0.45;
+  };
+})();
+</script>
+</body>
+</html>
