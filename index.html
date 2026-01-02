@@ -23,11 +23,10 @@
       z-index: 10;
     }
 
-    /* --- Little man container --- */
     .runner{
       position: fixed;
       left: 0; top: 0;
-      width: 86px; height: 86px;              /* bigger so leg motion is visible */
+      width: 96px; height: 96px;          /* крупнее: видно бег */
       transform: translate(-50%, -50%);
       pointer-events: none;
       z-index: 1000;
@@ -36,62 +35,25 @@
     }
 
     .man{
-      width: 86px; height: 86px;
+      width: 96px; height: 96px;
       transform-origin: 50% 50%;
-      transform: scaleX(1);
       will-change: transform, opacity;
     }
-    .man svg { width: 86px; height: 86px; display: block; }
+    .man svg { width: 96px; height: 96px; display: block; }
 
-    /* death: yellow disappears quickly */
+    /* смерть: желтое тело исчезает */
     .runner.dying .man{
       opacity: 0;
-      transform: scaleX(var(--face, 1)) scale(0.92);
+      transform: scaleX(var(--face, 1)) scale(0.94);
       transition: opacity 140ms ease, transform 180ms ease;
     }
 
-    /* --- Running animation control --- */
-    .runner .anim {
-      animation-duration: var(--runDur, 420ms);
-      animation-timing-function: ease-in-out;
-      animation-iteration-count: infinite;
-      animation-direction: alternate;
-      animation-play-state: paused; /* only when moving */
-    }
-    .runner.moving .anim { animation-play-state: running; }
-
-    /* swing + knee bend */
-    .thighL { animation-name: thighL; }
-    .thighR { animation-name: thighR; }
-
-    .shinL  { animation-name: shinL;  }
-    .shinR  { animation-name: shinR;  }
-
-    .armL   { animation-name: armL;   }
-    .armR   { animation-name: armR;   }
-
-    /* opposite phase */
-    .thighR, .shinR, .armR { animation-delay: calc(var(--runDur, 420ms) * -0.5); }
-
-    /* Make transforms behave predictably on SVG groups */
-    svg g { transform-box: fill-box; transform-origin: 50% 15%; }
-
-    @keyframes thighL { 0% { transform: rotate(-22deg); } 100% { transform: rotate(18deg); } }
-    @keyframes thighR { 0% { transform: rotate(18deg); } 100% { transform: rotate(-22deg); } }
-
-    /* shin bends more when leg is forward */
-    @keyframes shinL  { 0% { transform: rotate(38deg); } 100% { transform: rotate(-8deg); } }
-    @keyframes shinR  { 0% { transform: rotate(-8deg); } 100% { transform: rotate(38deg); } }
-
-    @keyframes armL   { 0% { transform: rotate(16deg); } 100% { transform: rotate(-20deg); } }
-    @keyframes armR   { 0% { transform: rotate(-20deg); } 100% { transform: rotate(16deg); } }
-
-    /* Speech bubble */
+    /* пузырь */
     .bubble{
       position:absolute;
-      left: 88px;
-      top: 10px;
-      max-width: 280px;
+      left: 98px;
+      top: 12px;
+      max-width: 320px;
       padding: 8px 10px;
       border-radius: 14px;
       background: #fff;
@@ -117,27 +79,27 @@
       transform: rotate(45deg);
     }
 
-    /* --- Soul (more visible + slow) --- */
+    /* душа (белая, заметная) */
     .soul{
       position: fixed;
       left: 0; top: 0;
-      width: 92px; height: 92px;
-      transform: translate(-50%, -50%) scale(1);
+      width: 104px; height: 104px;
+      transform: translate(-50%, -50%);
       pointer-events: none;
       z-index: 1500;
       opacity: 0;
       filter:
-        drop-shadow(0 10px 18px rgba(0,0,0,0.10))
-        drop-shadow(0 0 12px rgba(255,255,255,0.95));
+        drop-shadow(0 12px 22px rgba(0,0,0,0.12))
+        drop-shadow(0 0 14px rgba(255,255,255,0.98));
       will-change: left, top, opacity;
     }
-    .soul svg { width: 92px; height: 92px; display: block; }
+    .soul svg { width: 104px; height: 104px; display: block; }
     .soul.on{
       opacity: 1;
       transition: opacity 180ms ease;
     }
 
-    /* --- Explosion visuals (fireball) --- */
+    /* взрыв (огненный) */
     .boom{
       position: fixed;
       left: 0; top: 0;
@@ -237,10 +199,9 @@
   const EXPLOSION_RADIUS = 140;
   const HEADER_H = 44;
 
-  const prefersReducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
   const CFG = {
-    accel: prefersReducedMotion ? 0.004 : 0.020,
-    maxSpeed: prefersReducedMotion ? 0.45 : 1.70,
+    accel: 0.020,
+    maxSpeed: 1.70,
     friction: 0.86,
     catchRadius: 14,
     stopMs: 240,
@@ -248,14 +209,14 @@
     speakCooldownMs: 650,
   };
 
-  // Souls: slower + longer
+  // Душа: медленнее и дольше
   const SOUL = {
-    risePxPerMs: 0.34,   // slower
-    lifeMs: 3600,
-    driftX: 180,
-    waveAmp: [18, 26],
-    waveFreq: [0.007, 0.011],
-    fadeStart: 1300,
+    risePxPerMs: 0.28,   // медленнее
+    lifeMs: 4200,
+    driftX: 220,
+    waveAmp: [22, 32],
+    waveFreq: [0.006, 0.010],
+    fadeStart: 1600,
   };
 
   window.addEventListener("contextmenu", (e) => e.preventDefault());
@@ -267,78 +228,76 @@
 
   const men = [];
 
-  // --- Smooth stickman like your reference, but “clean” ---
-  // We draw with thick strokes (round caps) to get a soft silhouette
-  function manSVG({ stroke, headFill, outlineStroke, outlineWidth, strokeWidth }) {
-    const sw = strokeWidth ?? 12;
-    const ow = outlineWidth ?? (sw + 4);
-    const hasOutline = !!outlineStroke;
+  // Рисуем цельного человечка: капсулы + круги-суставы закрывают любые щели.
+  // Анимацию делаем через rotate(angle cx cy) по конкретным координатам суставов.
+  function manSVG({ color, outline }) {
+    const fill = color;
+    const outlineStroke = outline ? "rgba(0,0,0,0.30)" : "none";
+    const outlineW = outline ? 3.2 : 0;
 
-    // Base groups for animation: thighs, shins, arms.
-    // Coordinates tuned for a running pose.
-    const skeleton = (s, width, extraAttrs="") => `
-      <g fill="none" stroke="${s}" stroke-width="${width}" stroke-linecap="round" stroke-linejoin="round" ${extraAttrs}>
-        <!-- torso + neck -->
-        <path d="M32 26 L32 44" />
-        <!-- oval-ish body hint (a subtle curve) -->
-        <path d="M32 30 C28 34, 28 38, 32 42" opacity="0.0"/>
-      </g>
-    `;
-
-    const limbs = (s, width) => `
-      <g fill="none" stroke="${s}" stroke-width="${width}" stroke-linecap="round" stroke-linejoin="round">
-        <!-- Arms -->
-        <g class="anim armL" style="transform-origin: 30px 30px;">
-          <path d="M30 30 L19 36" />
-        </g>
-        <g class="anim armR" style="transform-origin: 34px 30px;">
-          <path d="M34 30 L45 36" />
-        </g>
-
-        <!-- Legs: each leg is thigh group (anim) + nested shin group (anim) -->
-        <g class="anim thighL" style="transform-origin: 30px 44px;">
-          <path d="M30 44 L25 54" />
-          <g class="anim shinL" style="transform-origin: 25px 54px;">
-            <path d="M25 54 L30 62" />
-          </g>
-        </g>
-
-        <g class="anim thighR" style="transform-origin: 34px 44px;">
-          <path d="M34 44 L39 54" />
-          <g class="anim shinR" style="transform-origin: 39px 54px;">
-            <path d="M39 54 L35 62" />
-          </g>
-        </g>
-      </g>
-    `;
-
-    // Head + neck: round
-    const head = (fill) => `<circle cx="32" cy="16" r="11" fill="${fill}" />`;
-    const neck = (s, width) => `<path d="M32 26 L32 28" stroke="${s}" stroke-width="${width}" stroke-linecap="round" />`;
-
-    // Build SVG with optional outline layer (for souls visibility)
-    const outlineLayer = hasOutline ? `
-      <g>
-        ${head("#fff")}
-        ${neck(outlineStroke, ow)}
-        ${skeleton(outlineStroke, ow)}
-        ${limbs(outlineStroke, ow)}
-      </g>
-    ` : "";
-
-    const mainLayer = `
-      <g>
-        ${head(headFill)}
-        ${neck(stroke, sw)}
-        ${skeleton(stroke, sw)}
-        ${limbs(stroke, sw)}
-      </g>
-    `;
-
+    // Вспомогательная "капсула" — толстая линия с круглыми концами (выглядит как цельный сегмент)
+    // + поверх кладём кружок на сустав (закрывает стык при любых углах).
     return `
       <svg viewBox="0 0 64 64" aria-hidden="true">
-        ${outlineLayer}
-        ${mainLayer}
+        <g stroke="${outlineStroke}" stroke-width="${outlineW}" stroke-linecap="round" stroke-linejoin="round">
+          <!-- HEAD -->
+          <circle cx="32" cy="16" r="11" fill="${fill}" />
+          <!-- NECK -->
+          <path d="M32 26 L32 28" stroke="${fill}" stroke-width="12" />
+
+          <!-- BODY (smooth oval) -->
+          <ellipse cx="32" cy="40" rx="12" ry="16" fill="${fill}"/>
+
+          <!-- ARMS -->
+          <g class="armL">
+            <path d="M26 32 L16 40" stroke="${fill}" stroke-width="12" />
+            <circle cx="26" cy="32" r="6" fill="${fill}"/>
+            <circle cx="16" cy="40" r="6" fill="${fill}"/>
+            <g class="foreL">
+              <path d="M16 40 L14 50" stroke="${fill}" stroke-width="12" />
+              <circle cx="16" cy="40" r="6" fill="${fill}"/>
+              <circle cx="14" cy="50" r="6" fill="${fill}"/>
+            </g>
+          </g>
+
+          <g class="armR">
+            <path d="M38 32 L48 40" stroke="${fill}" stroke-width="12" />
+            <circle cx="38" cy="32" r="6" fill="${fill}"/>
+            <circle cx="48" cy="40" r="6" fill="${fill}"/>
+            <g class="foreR">
+              <path d="M48 40 L50 50" stroke="${fill}" stroke-width="12" />
+              <circle cx="48" cy="40" r="6" fill="${fill}"/>
+              <circle cx="50" cy="50" r="6" fill="${fill}"/>
+            </g>
+          </g>
+
+          <!-- LEGS -->
+          <g class="thighL">
+            <path d="M30 50 L24 58" stroke="${fill}" stroke-width="12" />
+            <circle cx="30" cy="50" r="6" fill="${fill}"/>
+            <circle cx="24" cy="58" r="6" fill="${fill}"/>
+            <g class="shinL">
+              <path d="M24 58 L30 64" stroke="${fill}" stroke-width="12" />
+              <circle cx="24" cy="58" r="6" fill="${fill}"/>
+              <circle cx="30" cy="64" r="6" fill="${fill}"/>
+            </g>
+          </g>
+
+          <g class="thighR">
+            <path d="M34 50 L40 58" stroke="${fill}" stroke-width="12" />
+            <circle cx="34" cy="50" r="6" fill="${fill}"/>
+            <circle cx="40" cy="58" r="6" fill="${fill}"/>
+            <g class="shinR">
+              <path d="M40 58 L34 64" stroke="${fill}" stroke-width="12" />
+              <circle cx="40" cy="58" r="6" fill="${fill}"/>
+              <circle cx="34" cy="64" r="6" fill="${fill}"/>
+            </g>
+          </g>
+
+          <!-- “Shoulder/hip cover” blobs to make silhouette even more solid -->
+          <circle cx="32" cy="30" r="7" fill="${fill}"/>
+          <circle cx="32" cy="50" r="7" fill="${fill}"/>
+        </g>
       </svg>
     `;
   }
@@ -349,11 +308,7 @@
 
     const man = document.createElement("div");
     man.className = "man";
-    man.innerHTML = manSVG({
-      stroke: "#FFD400",
-      headFill: "#FFD400",
-      strokeWidth: 12
-    });
+    man.innerHTML = manSVG({ color: "#FFD400", outline: false });
 
     const bubble = document.createElement("div");
     bubble.className = "bubble";
@@ -363,7 +318,20 @@
     el.appendChild(bubble);
     document.body.appendChild(el);
 
-    return { el, man, bubble };
+    // grab parts for JS posing
+    const svg = man.querySelector("svg");
+    const parts = {
+      armL: svg.querySelector(".armL"),
+      foreL: svg.querySelector(".foreL"),
+      armR: svg.querySelector(".armR"),
+      foreR: svg.querySelector(".foreR"),
+      thighL: svg.querySelector(".thighL"),
+      shinL: svg.querySelector(".shinL"),
+      thighR: svg.querySelector(".thighR"),
+      shinR: svg.querySelector(".shinR"),
+    };
+
+    return { el, man, bubble, parts };
   }
 
   function clamp(v,a,b){ return Math.max(a, Math.min(b, v)); }
@@ -371,23 +339,28 @@
   function spawnMan(x, y){
     if (men.length >= MAX_MEN) return;
     y = clamp(y, HEADER_H, innerHeight);
-    const { el, man, bubble } = makeRunnerElement();
+    const { el, man, bubble, parts } = makeRunnerElement();
+
     const m = {
-      el, man, bubble,
+      el, man, bubble, parts,
       alive: true,
       dying: false,
       pos: { x, y },
       vel: { x: 0, y: 0 },
       facing: 1,
       bobT: 0,
+      phase: Math.random() * Math.PI * 2, // беговая фаза
       stopUntil: 0,
       speakUntil: 0,
       lastSpeak: 0,
     };
+
     el.style.left = x + "px";
     el.style.top  = y + "px";
-    el.style.setProperty("--runDur", "420ms");
     men.push(m);
+
+    // начальная поза
+    applyPose(m, 0, 0);
   }
 
   function spawnSoul(fromX, fromY, facing){
@@ -395,13 +368,7 @@
     s.className = "soul";
     s.style.left = fromX + "px";
     s.style.top  = fromY + "px";
-    s.innerHTML = manSVG({
-      stroke: "#FFFFFF",
-      headFill: "#FFFFFF",
-      outlineStroke: "rgba(0,0,0,0.28)",   // strong outline so it reads on white
-      outlineWidth: 18,
-      strokeWidth: 14
-    });
+    s.innerHTML = manSVG({ color: "#FFFFFF", outline: true });
     document.body.appendChild(s);
 
     const svg = s.querySelector("svg");
@@ -429,12 +396,11 @@
       s.style.left = nx + "px";
       s.style.top  = ny + "px";
 
-      // fade later, slower
       const fadeU = Math.max(0, u - SOUL.fadeStart);
       const alpha = Math.max(0, 1.0 - (fadeU / (lifeMs - SOUL.fadeStart)));
       s.style.opacity = alpha.toFixed(3);
 
-      if (ny < -80 || u >= lifeMs || alpha <= 0.01) {
+      if (ny < -100 || u >= lifeMs || alpha <= 0.01) {
         s.remove();
         return;
       }
@@ -451,17 +417,81 @@
     m.el.style.setProperty("--face", String(facing));
     m.el.classList.add("dying");
 
-    setTimeout(() => spawnSoul(m.pos.x, m.pos.y, facing), 80);
+    setTimeout(() => spawnSoul(m.pos.x, m.pos.y, facing), 90);
 
     setTimeout(() => {
       m.alive = false;
       m.el.remove();
       const idx = men.indexOf(m);
       if (idx >= 0) men.splice(idx, 1);
-    }, 240);
+    }, 260);
   }
 
-  // Explosion visuals
+  // --- Pose system (JS transforms inside SVG) ---
+  // Joint coordinates in viewBox:
+  const J = {
+    shL: [26,32], elL: [16,40],
+    shR: [38,32], elR: [48,40],
+    hipL:[30,50], knL:[24,58],
+    hipR:[34,50], knR:[40,58],
+  };
+
+  function rot(angleDeg, cx, cy){
+    return `rotate(${angleDeg.toFixed(2)} ${cx} ${cy})`;
+  }
+
+  function applyPose(m, speedPerMs, dt){
+    const p = m.parts;
+
+    // если стоит — лёгкая idle поза
+    const moving = speedPerMs > 0.10 && dt > 0;
+    const baseFreq = moving ? (6.5 + speedPerMs * 6.0) : 1.2; // рад/сек
+    if (dt) m.phase += (dt / 1000) * baseFreq;
+
+    const s = Math.sin(m.phase);
+    const c = Math.cos(m.phase);
+
+    // ноги: бедро + голень (колено сгибается)
+    const thighSwing = 26 * s;
+    const kneeBendL  = 28 + 34 * Math.max(0,  s); // когда нога впереди — сильнее сгиб
+    const kneeBendR  = 28 + 34 * Math.max(0, -s);
+
+    // руки в противофазе
+    const armSwing = -18 * s;
+    const elbowBend = 16 + 14 * Math.max(0, -s);
+
+    // чуть наклон корпуса вперёд на скорости (через руки/ноги достаточно)
+
+    // Left leg
+    p.thighL.setAttribute("transform", rot(-thighSwing, ...J.hipL));
+    p.shinL.setAttribute("transform",  rot(kneeBendL,  ...J.knL));
+
+    // Right leg
+    p.thighR.setAttribute("transform", rot(thighSwing, ...J.hipR));
+    p.shinR.setAttribute("transform",  rot(kneeBendR,  ...J.knR));
+
+    // Arms
+    p.armL.setAttribute("transform",  rot(armSwing, ...J.shL));
+    p.foreL.setAttribute("transform", rot(elbowBend, ...J.elL));
+
+    p.armR.setAttribute("transform",  rot(-armSwing, ...J.shR));
+    p.foreR.setAttribute("transform", rot(elbowBend, ...J.elR));
+
+    // если не движется — пусть руки/ноги меньше “дёргаются”
+    if (!moving){
+      // чуть прижать анимацию к спокойной позе
+      p.thighL.setAttribute("transform", rot(-6, ...J.hipL));
+      p.thighR.setAttribute("transform", rot( 6, ...J.hipR));
+      p.shinL.setAttribute("transform",  rot(22, ...J.knL));
+      p.shinR.setAttribute("transform",  rot(22, ...J.knR));
+      p.armL.setAttribute("transform",   rot(-6, ...J.shL));
+      p.armR.setAttribute("transform",   rot( 6, ...J.shR));
+      p.foreL.setAttribute("transform",  rot(10, ...J.elL));
+      p.foreR.setAttribute("transform",  rot(10, ...J.elR));
+    }
+  }
+
+  // --- Explosion visuals ---
   function fireballExplosion(x, y){
     const b = document.createElement("div");
     b.className = "boom";
@@ -516,8 +546,8 @@
   }
 
   // Controls:
-  // LMB: spawn (<=15) + target
-  // RMB: explosion
+  // LMB: spawn (<=15) + set target
+  // RMB: explode
   addEventListener("pointerdown", (e) => {
     if (e.button === 2) {
       e.preventDefault();
@@ -528,11 +558,11 @@
     spawnMan(e.clientX, e.clientY);
   }, { passive: false });
 
-  // Seed a couple
+  // Seed
   requestAnimationFrame(() => requestAnimationFrame(() => {
-    spawnMan(innerWidth * 0.30, innerHeight * 0.58);
-    spawnMan(innerWidth * 0.22, innerHeight * 0.66);
-    target = { x: innerWidth * 0.70, y: innerHeight * 0.42 };
+    spawnMan(innerWidth * 0.30, innerHeight * 0.60);
+    spawnMan(innerWidth * 0.22, innerHeight * 0.70);
+    target = { x: innerWidth * 0.70, y: innerHeight * 0.44 };
   }));
 
   function tick(now){
@@ -541,7 +571,7 @@
 
     if (!hasPointer) {
       target.x = innerWidth * 0.70;
-      target.y = innerHeight * 0.42;
+      target.y = innerHeight * 0.44;
     }
 
     for (const m of men) {
@@ -575,7 +605,6 @@
         m.pos.x = clamp(m.pos.x, 0, innerWidth);
         m.pos.y = clamp(m.pos.y, HEADER_H, innerHeight);
 
-        // Catch
         if (dist < CFG.catchRadius) {
           m.pos.x = target.x;
           m.pos.y = target.y;
@@ -594,21 +623,16 @@
         m.bubble.classList.remove("on");
       }
 
-      // --- Run animation speed based on actual movement ---
-      const speedNow = Math.hypot(m.vel.x, m.vel.y);
-      const moving = !stopped && speedNow > 0.12;
+      const speedNow = Math.hypot(m.vel.x, m.vel.y); // px / frame
+      const speedPerMs = speedNow / dt;
 
-      if (moving) m.el.classList.add("moving");
-      else m.el.classList.remove("moving");
+      // поза/бег
+      applyPose(m, speedPerMs, dt);
 
-      // Shorter duration when faster => faster leg cycle
-      // clamp duration 300..520ms
-      const dur = clamp(520 - speedNow * 140, 300, 520);
-      m.el.style.setProperty("--runDur", `${dur.toFixed(0)}ms`);
-
-      // slight vertical bob
-      m.bobT += dt * 0.01 * (moving ? 1.8 : 0.6);
-      const bob = Math.sin(m.bobT) * (moving ? 1.4 : 0.6);
+      // легкий bob
+      const moving = !stopped && speedPerMs > 0.10;
+      m.bobT += dt * 0.01 * (moving ? 2.0 : 0.6);
+      const bob = Math.sin(m.bobT) * (moving ? 1.6 : 0.6);
 
       m.el.style.left = m.pos.x + "px";
       m.el.style.top  = (m.pos.y + bob) + "px";
