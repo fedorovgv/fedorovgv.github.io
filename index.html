@@ -9,8 +9,9 @@
     * { box-sizing: border-box; }
     html, body { height: 100%; margin: 0; background: #fff; color: #000; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial; }
 
-    /* Full-bleed layout (no extra whitespace) */
+    /* Full-bleed white, no extra spaces */
     .wrap { height: 100%; width: 100%; display: grid; grid-template-rows: auto 1fr; }
+
     header{
       display:flex; align-items:baseline; justify-content:space-between;
       padding: 10px 12px;
@@ -22,7 +23,7 @@
 
     main{ position:relative; width:100%; height:100%; }
 
-    /* Minimal write field filling the whole remaining area */
+    /* Write field fills remaining area */
     .note{ position:absolute; inset:0; display:grid; grid-template-rows:auto 1fr auto; }
     .note label{
       padding:10px 12px;
@@ -52,22 +53,51 @@
       border-radius: 8px;
     }
 
-    /* Pixel sprite runner */
+    /* Little man (non-pixel, simple silhouette like your example) */
     .runner{
       position:absolute;
       left:0; top:0;
-      width:64px; height:64px;
-      transform: translate(-200px,-200px);
+      width: 54px; height: 54px; /* overall visual size */
       pointer-events:none;
       will-change: transform;
-      /* a tiny soft shadow but still minimal */
+      transform: translate(-999px,-999px);
       filter: drop-shadow(0 10px 10px rgba(0,0,0,0.10));
     }
-    .runner canvas{
-      width:64px; height:64px;
-      image-rendering: pixelated;
-      image-rendering: crisp-edges;
-      display:block;
+
+    .man svg { width: 54px; height: 54px; display:block; }
+
+    /* Speech bubble */
+    .bubble{
+      position:absolute;
+      left: 58px;
+      top: -4px;
+      max-width: 220px;
+      padding: 8px 10px;
+      border-radius: 14px;
+      background: #fff;
+      border: 1px solid rgba(0,0,0,0.14);
+      color: rgba(0,0,0,0.80);
+      font-size: 12px;
+      line-height: 1.25;
+      box-shadow: 0 12px 30px rgba(0,0,0,0.10);
+      opacity: 0;
+      transform: translateY(-6px);
+      transition: opacity .16s ease, transform .16s ease;
+      white-space: normal;
+    }
+    .bubble.on{
+      opacity: 1;
+      transform: translateY(0);
+    }
+    .bubble:after{
+      content:"";
+      position:absolute;
+      left: -6px; top: 18px;
+      width: 10px; height: 10px;
+      background: #fff;
+      border-left: 1px solid rgba(0,0,0,0.14);
+      border-bottom: 1px solid rgba(0,0,0,0.14);
+      transform: rotate(45deg);
     }
 
     @media (prefers-reduced-motion: reduce){
@@ -77,17 +107,47 @@
 </head>
 <body>
   <div class="wrap">
-    <header>
-      <div>
-        <h1 class="name"></h1>
-        <p class="desc">DL engineer</p>
-      </div>
-      <div class="meta">github.io</div>
-    </header>
-
     <main>
       <div class="runner" id="runner" aria-hidden="true">
-        <canvas id="sprite" width="16" height="16"></canvas>
+        <div class="man" id="man">
+          <!-- Simple silhouette inspired by your example (no face) -->
+          <svg viewBox="0 0 64 64" aria-hidden="true">
+            <!-- head -->
+            <circle cx="30" cy="14" r="9" fill="#FFD400"/>
+            <!-- torso -->
+            <path d="M24 24
+                     C24 20, 36 20, 36 24
+                     L38 40
+                     C38 46, 22 46, 22 40
+                     Z" fill="#FFD400"/>
+            <!-- left arm -->
+            <path d="M23 27
+                     C16 28, 12 33, 11 37
+                     C10 40, 13 42, 15 40
+                     C17 37, 19 34, 25 33
+                     Z" fill="#FFD400"/>
+            <!-- right arm -->
+            <path d="M37 27
+                     C44 28, 50 32, 53 36
+                     C55 39, 53 42, 50 41
+                     C46 39, 43 35, 36 34
+                     Z" fill="#FFD400"/>
+            <!-- left leg -->
+            <path d="M26 41
+                     C22 47, 19 52, 18 56
+                     C18 59, 22 60, 24 57
+                     C27 53, 30 48, 32 45
+                     Z" fill="#FFD400"/>
+            <!-- right leg -->
+            <path d="M34 41
+                     C37 47, 41 52, 45 56
+                     C47 58, 50 56, 49 53
+                     C47 49, 43 45, 38 42
+                     Z" fill="#FFD400"/>
+          </svg>
+        </div>
+
+        <div class="bubble" id="bubble">smnth will be later here, now go away</div>
       </div>
     </main>
   </div>
@@ -96,8 +156,7 @@
 (() => {
   const note = document.getElementById("note");
   const runner = document.getElementById("runner");
-  const c = document.getElementById("sprite");
-  const ctx = c.getContext("2d", { alpha: true });
+  const bubble = document.getElementById("bubble");
 
   // Focus shortcut
   window.addEventListener("keydown", (e) => {
@@ -110,9 +169,10 @@
   const prefersReducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
   if (prefersReducedMotion) return;
 
-  // Cursor target
+  // Cursor target in viewport coords
   let target = { x: window.innerWidth * 0.65, y: window.innerHeight * 0.55 };
   let hasPointer = false;
+
   function setTarget(e){
     hasPointer = true;
     target.x = e.clientX;
@@ -121,110 +181,43 @@
   window.addEventListener("pointermove", setTarget, { passive: true });
   window.addEventListener("pointerdown", setTarget, { passive: true });
 
-  // Physics state
+  // Runner physics
   const pos = { x: window.innerWidth * 0.18, y: window.innerHeight * 0.6 };
   const vel = { x: 0, y: 0 };
+
   let paused = false;
   let fast = false;
 
   const cfg = {
     accel: 0.020,
-    maxSpeed: 1.45,     // px/ms
-    friction: 0.865,
-    catchRadius: 14,
-    // 2) Stop briefly when “caught”
-    stopMs: 180
+    maxSpeed: 1.55,   // px/ms
+    friction: 0.86,
+    catchRadius: 12,
+    stopMs: 260
   };
 
   function clamp(v,a,b){ return Math.max(a, Math.min(b, v)); }
 
-  // 3) No popup / no UI on catch — we only stop briefly.
-  let stopUntil = 0;
-
-  // 1) Minimal pixel sprite, inspired by reference: simple head/body/arms/legs, NO FACE.
-  // We draw a very simple silhouette with subtle outline.
-  const COLORS = {
-    fill: "#FFD400",
-    shade: "#F2C200",
-    outline: "rgba(0,0,0,0.10)"
-  };
-
-  function px(x,y,color){ ctx.fillStyle = color; ctx.fillRect(x,y,1,1); }
-  function clear(){ ctx.clearRect(0,0,16,16); }
-
-  // facing: only mirror left/right; head always up
-  let facing = 1; // 1 right, -1 left
-
-  // A tiny run cycle: legs/arms swap
-  const anim = { t: 0, frame: 0, acc: 0 };
-
-  function drawDude(frame, speed01){
-    clear();
-
-    // small bob
-    const bob = Math.round(Math.sin(anim.t*0.8) * 0.6 * speed01);
-
-    const ox = 6;
-    const oy = 2 + bob;
-
-    const F = COLORS.fill, S = COLORS.shade, O = COLORS.outline;
-
-    // HEAD (3x3) - rounded-ish by corners transparent
-    //  .XX.
-    //  XXXX (but in 3x3 we do a compact circle)
-    px(ox+1, oy+0, O); px(ox+2, oy+0, O);
-    px(ox+0, oy+1, O); px(ox+1, oy+1, F); px(ox+2, oy+1, F); px(ox+3, oy+1, O);
-    px(ox+0, oy+2, O); px(ox+1, oy+2, F); px(ox+2, oy+2, F); px(ox+3, oy+2, O);
-    px(ox+1, oy+3, O); px(ox+2, oy+3, O);
-
-    // NECK pixel
-    px(ox+1, oy+4, F); px(ox+2, oy+4, F);
-
-    // BODY (simple oval-ish 4x5)
-    for (let yy=0; yy<5; yy++){
-      for (let xx=0; xx<4; xx++){
-        const edge = (xx===0||xx===3||yy===0||yy===4);
-        px(ox+xx, oy+5+yy, edge ? O : F);
-      }
-    }
-    // slight shading on lower body
-    px(ox+1, oy+8, S); px(ox+2, oy+8, S);
-
-    // ARMS (very minimal sticks)
-    const swing = (frame % 2 === 0);
-    if (swing){
-      // left arm up, right down
-      px(ox-1, oy+6, O); px(ox-2, oy+5, F);
-      px(ox+4, oy+8, O); px(ox+5, oy+9, F);
-    } else {
-      // left down, right up
-      px(ox-1, oy+8, O); px(ox-2, oy+9, F);
-      px(ox+4, oy+6, O); px(ox+5, oy+5, F);
-    }
-
-    // LEGS (simple, swap forward/back)
-    const leftForward = (frame % 2 === 0);
-    const hipY = oy + 10;
-
-    function leg(x, forward){
-      px(x, hipY, O);
-      px(x, hipY+1, F);
-      if (forward){
-        px(x+1, hipY+2, F);
-        px(x+2, hipY+3, O);
-        px(x+3, hipY+3, F);
-        px(x+3, hipY+4, O); px(x+4, hipY+4, F); // foot
-      } else {
-        px(x-1, hipY+2, S);
-        px(x-2, hipY+3, O);
-        px(x-3, hipY+3, S);
-        px(x-3, hipY+4, O); px(x-4, hipY+4, S); // foot
-      }
-    }
-
-    leg(ox+1, leftForward);
-    leg(ox+2, !leftForward);
+  // 2) Center-of-cursor fix:
+  // We anchor runner using its visual center (width/2, height/2).
+  // We'll apply translate(x - cx, y - cy).
+  function getCenterOffset(){
+    const r = runner.getBoundingClientRect();
+    return { cx: r.width / 2, cy: r.height / 2 };
   }
+  // Use constants (54px) to avoid layout reads each frame
+  const CENTER = { cx: 54/2, cy: 54/2 };
+
+  // 3) Show speech on catch, no other UI.
+  let stopUntil = 0;
+  let speakUntil = 0;
+  let lastSpeak = 0;
+
+  // Facing direction without rotation (head always up); only mirror left/right
+  let facing = 1;
+
+  // Minimal “walking” squish animation (optional, subtle)
+  let bobT = 0;
 
   function step(now){
     const dt = clamp(now - (step._last || now), 8, 28);
@@ -236,12 +229,7 @@
       target.y = r.top + r.height * 0.35;
     }
 
-    // Controls
-    // Space: pause. Q: speed toggle.
-    // (Already requested before; keeping)
-    const speedMul = fast ? 1.85 : 1.0;
-
-    // If “stopped due to catch”, just render idle in place
+    const speedMul = fast ? 1.9 : 1.0;
     const stopped = now < stopUntil;
 
     if (!paused && !stopped) {
@@ -249,7 +237,7 @@
       const dy = target.y - pos.y;
       const dist = Math.hypot(dx, dy) || 1;
 
-      // facing by x only (no rotation)
+      // face by x only
       if (Math.abs(dx) > 2) facing = dx >= 0 ? 1 : -1;
 
       const ax = (dx / dist) * cfg.accel * dt * speedMul;
@@ -268,29 +256,43 @@
       pos.x += vel.x;
       pos.y += vel.y;
 
-      // keep on screen
-      pos.x = clamp(pos.x, 8, window.innerWidth - 8);
-      pos.y = clamp(pos.y, 8, window.innerHeight - 8);
+      // keep inside viewport (with center accounted)
+      pos.x = clamp(pos.x, CENTER.cx, window.innerWidth - CENTER.cx);
+      pos.y = clamp(pos.y, CENTER.cy, window.innerHeight - CENTER.cy);
 
-      // Catch: 2) STOP briefly when reaches cursor.
+      // Catch: stop exactly on cursor center
       if (dist < cfg.catchRadius) {
+        // snap center to cursor
+        pos.x = target.x;
+        pos.y = target.y;
+
+        vel.x = 0; vel.y = 0;
         stopUntil = now + cfg.stopMs;
-        vel.x = 0; vel.y = 0; // hard stop
+
+        // 3) show message on catch
+        // show it briefly, but don't spam continuously while user stays still
+        if (now - lastSpeak > 600) {
+          lastSpeak = now;
+          speakUntil = now + 1200;
+          bubble.classList.add("on");
+        }
       }
 
-      // Sprite animation tied to speed
-      const speed01 = clamp(sp / (maxV + 1e-6), 0, 1);
-      anim.t += dt * 0.01 * (0.6 + speed01 * 2.0);
-      anim.acc += dt * (0.002 + speed01 * 0.010);
-      if (anim.acc > 1) { anim.frame = (anim.frame + 1) % 2; anim.acc = 0; }
-
-      drawDude(anim.frame, speed01);
+      // subtle walk bobbing
+      bobT += dt * 0.01 * (0.6 + (Math.min(1, sp/(maxV+1e-6))) * 2.0);
     } else {
-      // paused or stopped: idle frame
-      drawDude(0, 0);
+      // when stopped, keep bubble visibility timer running
     }
 
-    runner.style.transform = `translate(${pos.x}px, ${pos.y}px) scaleX(${facing})`;
+    // Hide bubble when time expires
+    if (bubble.classList.contains("on") && now > speakUntil) {
+      bubble.classList.remove("on");
+    }
+
+    const bob = Math.sin(bobT) * 1.0;
+    // Render: translate to (pos - center), mirror via scaleX, NO rotation.
+    runner.style.transform =
+      `translate(${(pos.x - CENTER.cx)}px, ${(pos.y - CENTER.cy) + bob}px) scaleX(${facing})`;
 
     requestAnimationFrame(step);
   }
@@ -300,8 +302,6 @@
     if (e.key.toLowerCase() === "q") fast = !fast;
   });
 
-  // Initial draw
-  drawDude(0, 0);
   requestAnimationFrame(step);
 })();
 </script>
