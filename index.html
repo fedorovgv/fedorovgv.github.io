@@ -1,3 +1,4 @@
+```html
 <!doctype html>
 <html lang="en">
 <head>
@@ -7,94 +8,79 @@
   <style>
     :root { color-scheme: light; }
     * { box-sizing: border-box; }
-    html, body { height: 100%; margin: 0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial; }
-    body { background: #fafafa; color: #0b0d12; }
 
-    /* Layout */
-    .wrap {
-      min-height: 100%;
-      padding: 28px 22px 40px;
+    /* 1) Full-bleed pure white, no outer padding/margins */
+    html, body { height: 100%; margin: 0; background: #fff; color: #000; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial; }
+
+    .wrap{
+      height: 100%;
+      width: 100%;
       display: grid;
       grid-template-rows: auto 1fr;
-      gap: 22px;
+      /* no padding / no gaps => “no additional spaces” */
     }
 
-    header {
+    header{
       display: flex;
       align-items: baseline;
       justify-content: space-between;
-      gap: 18px;
-      border-bottom: 1px solid rgba(0,0,0,0.08);
-      padding-bottom: 14px;
-    }
-    .bio {
-      display: grid;
-      gap: 4px;
-    }
-    .name {
-      font-size: 18px;
-      font-weight: 650;
-      letter-spacing: -0.2px;
-      margin: 0;
-    }
-    .desc {
-      margin: 0;
-      font-size: 13px;
-      color: rgba(0,0,0,0.62);
-      line-height: 1.35;
-    }
-    .meta {
-      font-size: 12px;
-      color: rgba(0,0,0,0.52);
-      white-space: nowrap;
+      padding: 10px 12px;
+      border-bottom: 1px solid rgba(0,0,0,0.10);
     }
 
-    /* Main */
-    main {
+    .name{ margin: 0; font-size: 16px; font-weight: 650; letter-spacing: -0.2px; }
+    .desc{ margin: 2px 0 0; font-size: 12px; color: rgba(0,0,0,0.60); }
+    .meta{ font-size: 12px; color: rgba(0,0,0,0.45); white-space: nowrap; }
+
+    main{
       position: relative;
-      display: grid;
-      place-items: center;
+      width: 100%;
+      height: 100%;
     }
 
-    .note {
-      width: min(860px, 94vw);
-      height: min(62vh, 520px);
-      border-radius: 18px;
-      border: 1px solid rgba(0,0,0,0.10);
-      background: #fff;
-      box-shadow: 0 18px 60px rgba(0,0,0,0.08);
-      padding: 16px 16px 14px;
+    /* Minimal write field, centered but with no “card” spacing/decoration */
+    .note{
+      position: absolute;
+      inset: 0; /* fill entire remaining area */
       display: grid;
       grid-template-rows: auto 1fr auto;
-      gap: 10px;
     }
-    .note label {
+
+    .note label{
+      padding: 10px 12px;
       font-size: 12px;
-      color: rgba(0,0,0,0.56);
+      color: rgba(0,0,0,0.55);
       display: flex;
       justify-content: space-between;
       align-items: center;
-      gap: 10px;
+      border-bottom: 1px solid rgba(0,0,0,0.08);
     }
-    .note textarea {
+
+    textarea{
       width: 100%;
       height: 100%;
-      resize: none;
       border: 0;
       outline: none;
+      resize: none;
+      padding: 14px 12px;
       font-size: 15px;
       line-height: 1.5;
-      padding: 6px 2px;
+      background: #fff;
+      color: #000;
     }
-    .hint {
+
+    .hint{
+      padding: 10px 12px;
       font-size: 12px;
-      color: rgba(0,0,0,0.50);
+      color: rgba(0,0,0,0.45);
+      border-top: 1px solid rgba(0,0,0,0.08);
       display: flex;
       justify-content: space-between;
-      gap: 12px;
+      gap: 10px;
       flex-wrap: wrap;
     }
-    .kbd {
+
+    .kbd{
       font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
       font-size: 11px;
       border: 1px solid rgba(0,0,0,0.14);
@@ -103,199 +89,266 @@
       border-radius: 8px;
     }
 
-    /* Little yellow runner */
-    .runner {
+    /* 2) Pixel sprite runner */
+    .runner{
       position: absolute;
       left: 0; top: 0;
-      width: 30px; height: 30px;
-      transform: translate(-100px, -100px);
+      width: 64px; height: 64px;
+      transform: translate(-200px, -200px);
       pointer-events: none;
       will-change: transform;
-      filter: drop-shadow(0 10px 12px rgba(0,0,0,0.18));
     }
 
-    .man {
-      position: absolute;
-      inset: 0;
-      transform-origin: 50% 60%;
+    /* Pixel look: nearest-neighbor scaling */
+    .runner canvas{
+      width: 64px; height: 64px;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+      display: block;
     }
 
-    .head {
+    /* Small “tag” popup */
+    .bubble{
       position: absolute;
-      width: 14px; height: 14px;
-      left: 8px; top: 1px;
-      border-radius: 999px;
-      background: #ffd400;
-      border: 1px solid rgba(0,0,0,0.10);
-    }
-    .body {
-      position: absolute;
-      width: 10px; height: 11px;
-      left: 10px; top: 13px;
-      border-radius: 8px;
-      background: #ffd400;
-      border: 1px solid rgba(0,0,0,0.10);
-    }
-    .arm {
-      position: absolute;
-      width: 9px; height: 3px;
-      left: 12px; top: 15px;
-      border-radius: 999px;
-      background: #ffd400;
-      border: 1px solid rgba(0,0,0,0.10);
-      transform-origin: 10% 50%;
-      transform: rotate(var(--arm, 20deg));
-    }
-    .leg {
-      position: absolute;
-      width: 10px; height: 3px;
-      left: 10px; top: 22px;
-      border-radius: 999px;
-      background: #ffd400;
-      border: 1px solid rgba(0,0,0,0.10);
-      transform-origin: 10% 50%;
-    }
-    .leg.back { transform: rotate(var(--legBack, -25deg)); opacity: 0.95; }
-    .leg.front { transform: rotate(var(--legFront, 25deg)); }
-
-    .bubble {
-      position: absolute;
-      left: 34px; top: -4px;
-      padding: 6px 8px;
-      border-radius: 12px;
+      left: 62px; top: 2px;
+      padding: 4px 6px;
+      border-radius: 10px;
       font-size: 12px;
-      background: rgba(255,255,255,0.92);
-      border: 1px solid rgba(0,0,0,0.10);
-      color: rgba(0,0,0,0.72);
+      background: #fff;
+      border: 1px solid rgba(0,0,0,0.12);
+      color: rgba(0,0,0,0.65);
       transform: translateY(-6px);
       opacity: 0;
       transition: opacity .18s ease, transform .18s ease;
       white-space: nowrap;
     }
-    .bubble.on {
-      opacity: 1;
-      transform: translateY(0);
-    }
+    .bubble.on{ opacity: 1; transform: translateY(0); }
 
-    /* Reduced motion */
-    @media (prefers-reduced-motion: reduce) {
-      .runner { display: none; }
+    @media (prefers-reduced-motion: reduce){
+      .runner{ display:none; }
     }
   </style>
 </head>
+
 <body>
   <div class="wrap" id="stage">
     <header>
-      <div class="bio">
+      <div>
         <h1 class="name">Alex — Portfolio</h1>
-        <p class="desc">ML / DL engineer. Speech + neural networks. Building things, writing things.</p>
+        <p class="desc">ML / DL engineer • Speech & neural networks</p>
       </div>
-      <div class="meta">github.io • minimal</div>
+      <div class="meta">github.io</div>
     </header>
 
     <main>
       <section class="note">
         <label>
-          <span>Write something</span>
+          <span>Write</span>
           <span class="kbd">Ctrl/⌘ + K</span>
         </label>
+
         <textarea id="note" placeholder="Type here…"></textarea>
+
         <div class="hint">
-          <span>Move your cursor — the little yellow runner will try to catch it.</span>
-          <span>Tip: stop for a second and let him catch you 🙂</span>
+          <span>Move cursor — pixel dude tries to catch it.</span>
+          <span><span class="kbd">Q</span> speed • <span class="kbd">Space</span> pause</span>
         </div>
       </section>
 
-      <!-- Runner -->
       <div class="runner" id="runner" aria-hidden="true">
-        <div class="man" id="man">
-          <div class="head"></div>
-          <div class="body"></div>
-          <div class="arm"></div>
-          <div class="leg back"></div>
-          <div class="leg front"></div>
-        </div>
-        <div class="bubble" id="bubble">gotcha!</div>
+        <canvas id="sprite" width="16" height="16"></canvas>
+        <div class="bubble" id="bubble">tag!</div>
       </div>
     </main>
   </div>
 
-  <script>
-  (() => {
-    const stage = document.getElementById("stage");
-    const note = document.getElementById("note");
-    const runner = document.getElementById("runner");
-    const man = document.getElementById("man");
-    const bubble = document.getElementById("bubble");
+<script>
+(() => {
+  const note = document.getElementById("note");
+  const runner = document.getElementById("runner");
+  const bubble = document.getElementById("bubble");
+  const c = document.getElementById("sprite");
+  const ctx = c.getContext("2d", { alpha: true });
 
-    // Quick focus shortcut
-    window.addEventListener("keydown", (e) => {
-      const isK = e.key.toLowerCase() === "k";
-      if (isK && (e.ctrlKey || e.metaKey)) {
-        e.preventDefault();
-        note.focus();
+  // Shortcut focus
+  window.addEventListener("keydown", (e) => {
+    if (e.key.toLowerCase() === "k" && (e.ctrlKey || e.metaKey)) {
+      e.preventDefault();
+      note.focus();
+    }
+  });
+
+  const prefersReducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+  if (prefersReducedMotion) return;
+
+  // Target (cursor)
+  let target = { x: window.innerWidth * 0.65, y: window.innerHeight * 0.55 };
+  let hasPointer = false;
+
+  function setTarget(e){
+    hasPointer = true;
+    target.x = e.clientX;
+    target.y = e.clientY;
+  }
+  window.addEventListener("pointermove", setTarget, { passive: true });
+  window.addEventListener("pointerdown", setTarget, { passive: true });
+
+  // Runner physics
+  const pos = { x: window.innerWidth * 0.18, y: window.innerHeight * 0.6 };
+  const vel = { x: 0, y: 0 };
+
+  let paused = false;
+  let fast = false;
+
+  const cfg = {
+    accel: 0.018,
+    maxSpeed: 1.35,    // px/ms
+    friction: 0.86,
+    catchRadius: 16,
+    overshoot: 10
+  };
+
+  function clamp(v,a,b){ return Math.max(a, Math.min(b, v)); }
+
+  // 3) Prevent turning over: we NEVER rotate the sprite.
+  // We only mirror left/right (scaleX) and keep head "up".
+  let facing = 1; // 1 right, -1 left
+
+  // --- 2) Pixel sprite drawing (16x16) ---
+  // Two-frame run cycle + idle. We'll draw into 16x16 and scale up via CSS.
+  function px(x,y,color){
+    ctx.fillStyle = color;
+    ctx.fillRect(x, y, 1, 1);
+  }
+
+  function clear(){
+    ctx.clearRect(0,0,16,16);
+  }
+
+  function drawSprite(frame, speed01){
+    clear();
+
+    // Palette
+    const Y = "#FFD400";           // body
+    const Y2 = "#F2C200";          // shadow
+    const O = "rgba(0,0,0,0.12)";  // outline-ish
+    const D = "rgba(0,0,0,0.35)";  // darker detail
+
+    // Slight bob based on speed
+    const bob = Math.round((Math.sin(frame.t * 0.9) * 0.6) * speed01);
+
+    // Pixel “person” base origin
+    const ox = 5;
+    const oy = 2 + bob;
+
+    // Head (always up)
+    // outline ring
+    for (let yy=0; yy<4; yy++){
+      for (let xx=0; xx<4; xx++){
+        const edge = (xx===0||xx===3||yy===0||yy===3);
+        px(ox+xx, oy+yy, edge ? O : Y);
       }
-    });
+    }
+    // Eye
+    px(ox+2, oy+2, D);
 
-    const prefersReducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
-    if (prefersReducedMotion) return;
+    // Body (torso)
+    for (let yy=0; yy<5; yy++){
+      for (let xx=0; xx<4; xx++){
+        const edge = (xx===0||xx===3||yy===0||yy===4);
+        px(ox+xx, oy+4+yy, edge ? O : Y);
+      }
+    }
+    // Belt/shadow line
+    px(ox+1, oy+7, Y2); px(ox+2, oy+7, Y2);
 
-    // Target (cursor) position in page coords
-    let target = { x: window.innerWidth * 0.62, y: window.innerHeight * 0.55 };
-    let hasPointer = false;
-
-    function setTargetFromEvent(e) {
-      hasPointer = true;
-      target.x = e.clientX;
-      target.y = e.clientY;
+    // Arms (swing)
+    const armUp = (frame.i % 2 === 0);
+    if (armUp) {
+      px(ox-1, oy+6, O); px(ox-2, oy+5, Y);
+      px(ox+4, oy+6, O); px(ox+5, oy+5, Y);
+    } else {
+      px(ox-1, oy+7, O); px(ox-2, oy+8, Y);
+      px(ox+4, oy+7, O); px(ox+5, oy+8, Y);
     }
 
-    window.addEventListener("pointermove", setTargetFromEvent, { passive: true });
-    window.addEventListener("pointerdown", setTargetFromEvent, { passive: true });
+    // Legs (run cycle)
+    // Frame 0: left forward, right back
+    // Frame 1: right forward, left back
+    const leftForward = (frame.i % 2 === 0);
 
-    // Runner physics
-    const pos = { x: window.innerWidth * 0.25, y: window.innerHeight * 0.70 };
-    const vel = { x: 0, y: 0 };
+    // hip anchors
+    const hxL = ox+1, hxR = ox+2, hy = oy+9;
 
-    const cfg = {
-      accel: 0.020,      // how aggressively it chases
-      maxSpeed: 1.55,    // speed cap (in px/ms)
-      friction: 0.86,    // damping
-      catchRadius: 16,   // pixels
-      orbitPush: 14      // small nudge when caught
-    };
-
-    let last = performance.now();
-    let caughtAt = 0;
-
-    function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
-
-    function animate(now) {
-      const dt = clamp(now - last, 8, 24); // ms
-      last = now;
-
-      // If there was no pointer interaction yet, drift toward textarea center
-      if (!hasPointer) {
-        const r = note.getBoundingClientRect();
-        target.x = r.left + r.width * 0.72;
-        target.y = r.top + r.height * 0.35;
+    function leg(x, y, forward){
+      // upper
+      px(x, y, O);
+      px(x, y+1, Y);
+      // lower
+      if (forward){
+        px(x+1, y+2, Y);
+        px(x+2, y+3, O);
+        px(x+3, y+3, Y);
+      } else {
+        px(x-1, y+2, Y2);
+        px(x-2, y+3, O);
+        px(x-3, y+3, Y2);
       }
+      // foot
+      if (forward) {
+        px(x+3, y+4, O); px(x+4, y+4, Y);
+      } else {
+        px(x-3, y+4, O); px(x-4, y+4, Y2);
+      }
+    }
 
-      // Vector to target
+    leg(hxL, hy, leftForward);
+    leg(hxR, hy, !leftForward);
+
+    // Small “dust” pixel when moving
+    if (speed01 > 0.35) {
+      const dx = leftForward ? 2 : 1;
+      px(ox-4, oy+13, "rgba(0,0,0,0.06)");
+      px(ox-5, oy+14, "rgba(0,0,0,0.05)");
+      px(ox-3, oy+14, "rgba(0,0,0,0.04)");
+      px(ox-2, oy+13, "rgba(0,0,0,0.04)");
+    }
+  }
+
+  // Animation state for sprite
+  const spriteState = { t: 0, i: 0, accum: 0 };
+
+  let last = performance.now();
+  let lastCatch = 0;
+
+  function step(now){
+    const dt = clamp(now - last, 8, 28);
+    last = now;
+
+    if (!hasPointer) {
+      const r = note.getBoundingClientRect();
+      target.x = r.left + r.width * 0.75;
+      target.y = r.top + r.height * 0.35;
+    }
+
+    const speedMul = fast ? 1.9 : 1.0;
+
+    if (!paused) {
       const dx = target.x - pos.x;
       const dy = target.y - pos.y;
       const dist = Math.hypot(dx, dy) || 1;
 
-      // Accelerate toward cursor
-      const ax = (dx / dist) * cfg.accel * dt;
-      const ay = (dy / dist) * cfg.accel * dt;
+      // Set facing by x only (no rotation)
+      if (Math.abs(dx) > 2) facing = dx >= 0 ? 1 : -1;
+
+      const ax = (dx / dist) * cfg.accel * dt * speedMul;
+      const ay = (dy / dist) * cfg.accel * dt * speedMul;
 
       vel.x = (vel.x + ax) * cfg.friction;
       vel.y = (vel.y + ay) * cfg.friction;
 
-      // Limit speed
       const sp = Math.hypot(vel.x, vel.y) || 1;
-      const maxV = cfg.maxSpeed * dt;
+      const maxV = cfg.maxSpeed * dt * speedMul;
       if (sp > maxV) {
         vel.x = (vel.x / sp) * maxV;
         vel.y = (vel.y / sp) * maxV;
@@ -304,51 +357,55 @@
       pos.x += vel.x;
       pos.y += vel.y;
 
-      // Keep inside viewport a bit
-      pos.x = clamp(pos.x, 10, window.innerWidth - 10);
-      pos.y = clamp(pos.y, 10, window.innerHeight - 10);
+      // Keep on screen
+      pos.x = clamp(pos.x, 8, window.innerWidth - 8);
+      pos.y = clamp(pos.y, 8, window.innerHeight - 8);
 
-      // Facing direction
-      const angle = Math.atan2(dy, dx); // radians
-      const flip = (dx < 0) ? -1 : 1;
+      // Catch
+      if (dist < cfg.catchRadius && (now - lastCatch) > 450) {
+        lastCatch = now;
+        bubble.classList.add("on");
+        setTimeout(() => bubble.classList.remove("on"), 380);
 
-      // Running cycle depends on speed
-      const speed01 = clamp(sp / (maxV + 0.0001), 0, 1);
-      const runT = now * (0.010 + speed01 * 0.030);
-      const legSwing = Math.sin(runT) * (18 + speed01 * 28);
-      const armSwing = Math.sin(runT + Math.PI) * (14 + speed01 * 22);
-
-      man.style.setProperty("--legFront", `${legSwing}deg`);
-      man.style.setProperty("--legBack", `${-legSwing}deg`);
-      man.style.setProperty("--arm", `${armSwing}deg`);
-
-      // Little bob
-      const bob = Math.sin(runT * 0.75) * (1 + speed01 * 1.5);
-
-      // Catch behavior
-      if (dist < cfg.catchRadius) {
-        if (now - caughtAt > 500) {
-          caughtAt = now;
-          bubble.classList.add("on");
-          setTimeout(() => bubble.classList.remove("on"), 420);
-
-          // Nudge the runner slightly past the cursor so it feels like "tag"
-          const nx = (dx / dist) || 0;
-          const ny = (dy / dist) || 0;
-          pos.x -= nx * cfg.orbitPush;
-          pos.y -= ny * cfg.orbitPush;
-        }
+        // slight overshoot/back-off so it “tags” then continues
+        pos.x -= (dx / dist) * cfg.overshoot;
+        pos.y -= (dy / dist) * cfg.overshoot;
       }
 
-      // Render runner
-      runner.style.transform =
-        `translate(${pos.x}px, ${pos.y + bob}px) rotate(${angle}rad) scaleX(${flip})`;
+      // Sprite timing based on speed
+      const speed01 = clamp(sp / (maxV + 1e-6), 0, 1);
+      spriteState.t += dt * 0.01 * (0.6 + speed01 * 2.2);
+      spriteState.accum += dt * (0.002 + speed01 * 0.010);
+      if (spriteState.accum > 1) {
+        spriteState.i = (spriteState.i + 1) % 2;
+        spriteState.accum = 0;
+      }
 
-      requestAnimationFrame(animate);
+      drawSprite(spriteState, speed01);
+
+      // Render: translate + mirror only (NO rotation), head always up
+      runner.style.transform = `translate(${pos.x}px, ${pos.y}px) scaleX(${facing})`;
+    } else {
+      // paused: still draw idle
+      drawSprite({ t: spriteState.t, i: 0 }, 0);
+      runner.style.transform = `translate(${pos.x}px, ${pos.y}px) scaleX(${facing})`;
     }
 
-    requestAnimationFrame(animate);
-  })();
-  </script>
+    requestAnimationFrame(step);
+  }
+
+  // Controls
+  window.addEventListener("keydown", (e) => {
+    if (e.key === " ") { e.preventDefault(); paused = !paused; }
+    if (e.key.toLowerCase() === "q") fast = !fast;
+  });
+
+  // First render
+  drawSprite({ t: 0, i: 0 }, 0);
+  requestAnimationFrame(step);
+})();
+</script>
 </body>
 </html>
+```
+
