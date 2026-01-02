@@ -7,10 +7,11 @@
   <title>DL engineer</title>
   <style>
     * { box-sizing: border-box; }
-    html, body { height: 100%; margin: 0; background: #fff; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; }
+    html, body { height: 100%; margin: 0; background: #fff; overflow: hidden; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; }
 
-    /* Minimal header */
     header{
+      position: fixed;
+      left: 0; right: 0; top: 0;
       height: 44px;
       display: flex;
       align-items: center;
@@ -18,57 +19,42 @@
       font-size: 14px;
       font-weight: 650;
       border-bottom: 1px solid rgba(0,0,0,0.10);
-      user-select: none;
-    }
-
-    /* Full-screen writing area */
-    textarea{
-      position: fixed;
-      left: 0; right: 0;
-      top: 44px; bottom: 0;
-      width: 100%;
-      height: calc(100% - 44px);
-      border: 0;
-      outline: none;
-      resize: none;
       background: #fff;
-      color: #000;
-      padding: 16px 14px;
-      font-size: 16px;
-      line-height: 1.55;
+      user-select: none;
+      z-index: 10;
     }
-    textarea::placeholder{ color: rgba(0,0,0,0.25); }
 
-    /* Little man */
+    /* Men */
     .runner{
       position: fixed;
       left: 0; top: 0;
-      width: 54px; height: 54px;
+      width: 56px; height: 56px;
       transform: translate(-50%, -50%); /* center anchor */
       pointer-events: none;
-      z-index: 999999;
+      z-index: 1000;
+      will-change: left, top, transform, opacity, filter;
       filter: drop-shadow(0 10px 10px rgba(0,0,0,0.10));
-      will-change: left, top, transform, opacity;
     }
     .man{
-      width: 54px; height: 54px;
+      width: 56px; height: 56px;
       transform-origin: 50% 50%;
       transform: scaleX(1);
     }
-    .man svg { width: 54px; height: 54px; display: block; }
+    .man svg { width: 56px; height: 56px; display: block; }
 
-    /* Death effect */
+    /* Death: shrink + fade */
     .runner.dead{
       opacity: 0;
-      transform: translate(-50%, -50%) scale(0.25);
+      transform: translate(-50%, -50%) scale(0.22);
       transition: opacity 180ms ease, transform 220ms ease;
+      filter: drop-shadow(0 4px 6px rgba(0,0,0,0.06));
     }
 
     /* Speech bubble */
     .bubble{
       position:absolute;
-      left: 58px;
-      top: -4px;
+      left: 60px;
+      top: -6px;
       max-width: 280px;
       padding: 8px 10px;
       border-radius: 14px;
@@ -95,81 +81,79 @@
       transform: rotate(45deg);
     }
 
-    /* Minimal explosion */
-    .explosion{
+    /* Red cloud explosion (minimal) */
+    .cloud{
       position: fixed;
       left: 0; top: 0;
-      width: 10px; height: 10px;
+      width: 12px; height: 12px;
       transform: translate(-50%, -50%);
       pointer-events: none;
-      z-index: 1000000;
+      z-index: 2000;
+      opacity: 1;
+      filter: blur(0.2px);
     }
-    .explosion:before, .explosion:after{
-      content:"";
-      position:absolute;
-      inset: -2px;
-      border-radius: 999px;
-      border: 2px solid rgba(0,0,0,0.25);
-      transform: scale(0.12);
-      opacity: 0.9;
-      animation: boom 520ms ease-out forwards;
-    }
-    .explosion:after{
-      border-width: 1px;
-      border-color: rgba(0,0,0,0.18);
-      animation-duration: 620ms;
-      animation-delay: 20ms;
-    }
-    .explosion .dot{
-      position:absolute;
+
+    /* layered puffs */
+    .cloud .puff{
+      position: absolute;
       left: 50%; top: 50%;
-      width: 3px; height: 3px;
+      width: var(--s);
+      height: var(--s);
       border-radius: 999px;
-      background: rgba(0,0,0,0.22);
-      transform: translate(-50%, -50%) scale(0.7);
+      background: rgba(255, 40, 40, 0.22);
+      transform: translate(-50%, -50%) scale(0.15);
+      animation: puff 520ms ease-out forwards;
+      box-shadow:
+        0 0 0 1px rgba(255, 40, 40, 0.10) inset;
+    }
+
+    .cloud .ring{
+      position: absolute;
+      left: 50%; top: 50%;
+      width: 18px; height: 18px;
+      border-radius: 999px;
+      border: 2px solid rgba(255, 40, 40, 0.28);
+      transform: translate(-50%, -50%) scale(0.15);
       opacity: 0.9;
-      animation: dot 560ms ease-out forwards;
+      animation: ring 560ms ease-out forwards;
     }
-    @keyframes boom{
-      0%   { transform: scale(0.10); opacity: 0.95; }
-      70%  { opacity: 0.55; }
-      100% { transform: scale(1.9); opacity: 0; }
+
+    @keyframes puff{
+      0%   { transform: translate(-50%, -50%) scale(0.12); opacity: 0.75; }
+      60%  { opacity: 0.55; }
+      100% { transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) scale(1.15); opacity: 0; }
     }
-    @keyframes dot{
-      0%   { opacity: 0.9; transform: translate(-50%, -50%) scale(0.7); }
-      100% { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(1.0); }
+    @keyframes ring{
+      0%   { transform: translate(-50%, -50%) scale(0.10); opacity: 0.9; }
+      100% { transform: translate(-50%, -50%) scale(2.2); opacity: 0; }
     }
   </style>
 </head>
 <body>
   <header>DL engineer</header>
-  <textarea id="note" placeholder="write…"></textarea>
 
   <script>
   (() => {
-    // ----- Config -----
+    // ---- Config ----
     const MAX_MEN = 15;
-    const EXPLOSION_RADIUS = 120; // px
-    const EXPLOSION_DOTS = 10;
+    const EXPLOSION_RADIUS = 130; // px
+    const HEADER_H = 44;
 
-    // Movement
     const prefersReducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
     const CFG = {
       accel: prefersReducedMotion ? 0.004 : 0.020,
-      maxSpeed: prefersReducedMotion ? 0.45 : 1.55, // px/ms
+      maxSpeed: prefersReducedMotion ? 0.45 : 1.60,
       friction: 0.86,
       catchRadius: 12,
-      stopMs: 260,
-      speakMs: 1400,
+      stopMs: 240,
+      speakMs: 1300,
       speakCooldownMs: 650,
     };
 
-    const note = document.getElementById("note");
-
-    // Prevent context menu so ПКМ works
+    // Disable context menu so right-click works
     window.addEventListener("contextmenu", (e) => e.preventDefault());
 
-    // Cursor target
+    // Target follows cursor
     let target = { x: window.innerWidth * 0.6, y: window.innerHeight * 0.6 };
     let hasPointer = false;
 
@@ -184,22 +168,53 @@
     // Men state
     const men = [];
 
+    // Our own smoother “guy” (rounded shapes, more even proportions)
+    function manSVG() {
+      return `
+        <svg viewBox="0 0 64 64" aria-hidden="true">
+          <!-- head -->
+          <circle cx="32" cy="14" r="9.2" fill="#FFD400"/>
+          <!-- torso -->
+          <path d="M24.5 24
+                   C24.5 20.5 39.5 20.5 39.5 24
+                   L40.8 38
+                   C41.5 45 22.5 45 23.2 38
+                   Z" fill="#FFD400"/>
+          <!-- left arm (smooth) -->
+          <path d="M24 27
+                   C16.5 29 12.3 34 11.5 38
+                   C10.9 41 14.2 43 16.2 40.7
+                   C18.4 38.1 20.5 35.3 26 34.4
+                   Z" fill="#FFD400"/>
+          <!-- right arm -->
+          <path d="M40 27
+                   C47.5 29 51.7 34 52.5 38
+                   C53.1 41 49.8 43 47.8 40.7
+                   C45.6 38.1 43.5 35.3 38 34.4
+                   Z" fill="#FFD400"/>
+          <!-- left leg -->
+          <path d="M28 41
+                   C23.8 47.5 20.8 53 20.2 57
+                   C20 60 24.2 60.6 26.1 57.8
+                   C29 53.6 31.2 48.6 33 45.5
+                   Z" fill="#FFD400"/>
+          <!-- right leg -->
+          <path d="M36 41
+                   C40.2 47.5 43.2 53 43.8 57
+                   C44 60 39.8 60.6 37.9 57.8
+                   C35 53.6 32.8 48.6 31 45.5
+                   Z" fill="#FFD400"/>
+        </svg>
+      `;
+    }
+
     function makeRunnerElement() {
       const el = document.createElement("div");
       el.className = "runner";
 
       const man = document.createElement("div");
       man.className = "man";
-      man.innerHTML = `
-        <svg viewBox="0 0 64 64" aria-hidden="true">
-          <circle cx="30" cy="14" r="9" fill="#FFD400"/>
-          <path d="M24 24 C24 20, 36 20, 36 24 L38 40 C38 46, 22 46, 22 40 Z" fill="#FFD400"/>
-          <path d="M23 27 C16 28, 12 33, 11 37 C10 40, 13 42, 15 40 C17 37, 19 34, 25 33 Z" fill="#FFD400"/>
-          <path d="M37 27 C44 28, 50 32, 53 36 C55 39, 53 42, 50 41 C46 39, 43 35, 36 34 Z" fill="#FFD400"/>
-          <path d="M26 41 C22 47, 19 52, 18 56 C18 59, 22 60, 24 57 C27 53, 30 48, 32 45 Z" fill="#FFD400"/>
-          <path d="M34 41 C37 47, 41 52, 45 56 C47 58, 50 56, 49 53 C47 49, 43 45, 38 42 Z" fill="#FFD400"/>
-        </svg>
-      `;
+      man.innerHTML = manSVG();
 
       const bubble = document.createElement("div");
       bubble.className = "bubble";
@@ -212,8 +227,11 @@
       return { el, man, bubble };
     }
 
+    function clamp(v,a,b){ return Math.max(a, Math.min(b, v)); }
+
     function spawnMan(x, y) {
       if (men.length >= MAX_MEN) return;
+      y = clamp(y, HEADER_H, window.innerHeight);
       const { el, man, bubble } = makeRunnerElement();
       const m = {
         el, man, bubble,
@@ -234,11 +252,7 @@
     function killMan(m) {
       if (!m.alive) return;
       m.alive = false;
-
-      // trigger death animation
       m.el.classList.add("dead");
-
-      // remove after transition
       setTimeout(() => {
         m.el.remove();
         const idx = men.indexOf(m);
@@ -246,28 +260,43 @@
       }, 260);
     }
 
-    function explode(x, y) {
-      // Visual explosion
-      const ex = document.createElement("div");
-      ex.className = "explosion";
-      ex.style.left = x + "px";
-      ex.style.top  = y + "px";
+    // Red cloud explosion
+    function cloudExplosion(x, y) {
+      const c = document.createElement("div");
+      c.className = "cloud";
+      c.style.left = x + "px";
+      c.style.top  = y + "px";
 
-      for (let i = 0; i < EXPLOSION_DOTS; i++) {
-        const d = document.createElement("div");
-        d.className = "dot";
-        const ang = (Math.PI * 2) * (i / EXPLOSION_DOTS);
-        const r = 22 + Math.random() * 34;
-        d.style.setProperty("--dx", `${Math.cos(ang) * r}px`);
-        d.style.setProperty("--dy", `${Math.sin(ang) * r}px`);
-        d.style.animationDuration = (480 + Math.random() * 220) + "ms";
-        ex.appendChild(d);
+      const ring = document.createElement("div");
+      ring.className = "ring";
+      c.appendChild(ring);
+
+      // 7–9 puffs
+      const puffs = 8;
+      for (let i = 0; i < puffs; i++) {
+        const p = document.createElement("div");
+        p.className = "puff";
+        const ang = (Math.PI * 2) * (i / puffs) + (Math.random() * 0.35);
+        const r = 24 + Math.random() * 28;
+        const dx = Math.cos(ang) * r;
+        const dy = Math.sin(ang) * r;
+
+        const size = (24 + Math.random() * 26) + "px";
+        p.style.setProperty("--s", size);
+        p.style.setProperty("--dx", dx + "px");
+        p.style.setProperty("--dy", dy + "px");
+        p.style.animationDuration = (460 + Math.random() * 220) + "ms";
+        c.appendChild(p);
       }
 
-      document.body.appendChild(ex);
-      setTimeout(() => ex.remove(), 750);
+      document.body.appendChild(c);
+      setTimeout(() => c.remove(), 760);
+    }
 
-      // Kill in radius
+    function explode(x, y) {
+      cloudExplosion(x, y);
+
+      // kill within radius
       for (const m of [...men]) {
         if (!m.alive) continue;
         const dx = m.pos.x - x;
@@ -276,54 +305,44 @@
       }
     }
 
-    // Mouse down:
-    // - Right click => explode
-    // - Left click => spawn a man (until 15) AND set target
+    // Controls:
+    // - Left click: spawn (up to 15) + set target
+    // - Right click: explosion
     window.addEventListener("pointerdown", (e) => {
-      if (e.button === 2) { // ПКМ
+      if (e.button === 2) {
         e.preventDefault();
         explode(e.clientX, e.clientY);
         return;
       }
-      // ЛКМ
       setTarget(e.clientX, e.clientY);
       spawnMan(e.clientX, e.clientY);
     }, { passive: false });
 
-    // Seed one man when layout is ready
-    function seed() {
-      const r = note.getBoundingClientRect();
-      const x = r.left + r.width * 0.25;
-      const y = r.top + r.height * 0.55;
-      spawnMan(x, y);
-
-      // Default target (so it moves even before first mouse move)
-      target.x = r.left + r.width * 0.75;
-      target.y = r.top + r.height * 0.35;
-    }
-
-    // Start after DOM/layout is stable
-    requestAnimationFrame(() => requestAnimationFrame(seed));
+    // Seed a few at start (nice, but still minimal)
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        spawnMan(window.innerWidth * 0.30, window.innerHeight * 0.55);
+        spawnMan(window.innerWidth * 0.22, window.innerHeight * 0.62);
+        // default target so they move even before first mouse move
+        target = { x: window.innerWidth * 0.70, y: window.innerHeight * 0.35 };
+      });
+    });
 
     // Loop
-    function clamp(v,a,b){ return Math.max(a, Math.min(b, v)); }
-
     function tick(now) {
       const dt = clamp(now - (tick._last || now), 8, 28);
       tick._last = now;
 
-      // If no pointer yet, keep target in textarea area
       if (!hasPointer) {
-        const r = note.getBoundingClientRect();
-        target.x = r.left + r.width * 0.75;
-        target.y = r.top + r.height * 0.35;
+        // gentle default drift
+        target.x = window.innerWidth * 0.70;
+        target.y = window.innerHeight * 0.40;
       }
 
       for (const m of men) {
         if (!m.alive) continue;
 
         const stopped = now < m.stopUntil;
-
         if (!stopped) {
           const dx = target.x - m.pos.x;
           const dy = target.y - m.pos.y;
@@ -348,7 +367,7 @@
           m.pos.y += m.vel.y;
 
           m.pos.x = clamp(m.pos.x, 0, window.innerWidth);
-          m.pos.y = clamp(m.pos.y, 44, window.innerHeight); // below header
+          m.pos.y = clamp(m.pos.y, HEADER_H, window.innerHeight);
 
           // Catch
           if (dist < CFG.catchRadius) {
@@ -357,7 +376,6 @@
             m.vel.x = 0; m.vel.y = 0;
             m.stopUntil = now + CFG.stopMs;
 
-            // Speak
             if (now - m.lastSpeak > CFG.speakCooldownMs) {
               m.lastSpeak = now;
               m.speakUntil = now + CFG.speakMs;
