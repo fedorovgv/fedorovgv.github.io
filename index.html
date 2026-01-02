@@ -36,12 +36,46 @@
       font-size:15px; line-height:1.5;
       background:#fff; color:#000;
     }
+    textarea::placeholder{ color: rgba(0,0,0,0.25); }
+
     .hint{
       padding:10px 12px;
       font-size:12px; color:rgba(0,0,0,0.45);
       border-top:1px solid rgba(0,0,0,0.08);
       display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap;
+      position: relative;
     }
+
+    /* Bottom button */
+    .controls{
+      position: absolute;
+      right: 12px;
+      bottom: 10px;
+      display: inline-flex;
+      gap: 8px;
+      align-items: center;
+    }
+    button.btn{
+      appearance: none;
+      border: 1px solid rgba(0,0,0,0.14);
+      background: rgba(0,0,0,0.03);
+      color: rgba(0,0,0,0.75);
+      padding: 8px 10px;
+      border-radius: 10px;
+      font-size: 12px;
+      cursor: pointer;
+      transition: transform .12s ease, background .12s ease, border-color .12s ease;
+    }
+    button.btn:hover{
+      transform: translateY(-1px);
+      background: rgba(0,0,0,0.05);
+      border-color: rgba(0,0,0,0.18);
+    }
+    .count{
+      font-size: 12px;
+      color: rgba(0,0,0,0.45);
+    }
+
     .kbd{
       font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
       font-size: 11px;
@@ -51,18 +85,17 @@
       border-radius: 8px;
     }
 
-    /* Runner: ALWAYS centered at (x,y) using translate(-50%,-50%) */
+    /* Little man */
     .runner{
-      position:absolute;
-      left:0; top:0;
+      position: fixed;
+      left: 0; top: 0;
       width: 54px; height: 54px;
-      pointer-events:none;
-      will-change: transform;
-      transform: translate(-999px,-999px) translate(-50%, -50%);
+      pointer-events: none;
+      z-index: 999999;
+      transform: translate(-50%, -50%); /* center anchor */
       filter: drop-shadow(0 10px 10px rgba(0,0,0,0.10));
+      will-change: left, top;
     }
-
-    /* Flip ONLY the man, not bubble */
     .man{
       width: 54px; height: 54px;
       transform-origin: 50% 50%;
@@ -74,7 +107,7 @@
       position:absolute;
       left: 58px;
       top: -4px;
-      max-width: 240px;
+      max-width: 280px;
       padding: 8px 10px;
       border-radius: 14px;
       background: #fff;
@@ -99,46 +132,45 @@
       border-bottom: 1px solid rgba(0,0,0,0.14);
       transform: rotate(45deg);
     }
-
-    @media (prefers-reduced-motion: reduce){
-      .runner{ display:none; }
-    }
   </style>
 </head>
 <body>
   <div class="wrap">
     <header>
       <div>
-        <p class="desc">DL engineer</p>
+        <h1 class="name">DL engineer</h1>
+        <p class="desc">Notes space</p>
       </div>
       <div class="meta">github.io</div>
     </header>
 
     <main>
-      <div class="runner" id="runner" aria-hidden="true">
-        <div class="man" id="man">
-          <!-- Simple silhouette (no face) -->
-          <svg viewBox="0 0 64 64" aria-hidden="true">
-            <circle cx="30" cy="14" r="9" fill="#FFD400"/>
-            <path d="M24 24 C24 20, 36 20, 36 24 L38 40 C38 46, 22 46, 22 40 Z" fill="#FFD400"/>
-            <path d="M23 27 C16 28, 12 33, 11 37 C10 40, 13 42, 15 40 C17 37, 19 34, 25 33 Z" fill="#FFD400"/>
-            <path d="M37 27 C44 28, 50 32, 53 36 C55 39, 53 42, 50 41 C46 39, 43 35, 36 34 Z" fill="#FFD400"/>
-            <path d="M26 41 C22 47, 19 52, 18 56 C18 59, 22 60, 24 57 C27 53, 30 48, 32 45 Z" fill="#FFD400"/>
-            <path d="M34 41 C37 47, 41 52, 45 56 C47 58, 50 56, 49 53 C47 49, 43 45, 38 42 Z" fill="#FFD400"/>
-          </svg>
-        </div>
+      <section class="note">
+        <label>
+          <span>Write</span>
+          <span class="kbd">Ctrl/⌘ + K</span>
+        </label>
 
-        <div class="bubble" id="bubble">smnth will be later here, now go away</div>
-      </div>
+        <textarea id="note" placeholder="Type here…"></textarea>
+
+        <div class="hint">
+          <span>Move cursor — little man tries to catch it.</span>
+          <span><span class="kbd">Space</span> pause • <span class="kbd">Q</span> speed</span>
+
+          <div class="controls">
+            <span class="count" id="count">1</span>
+            <button class="btn" id="add">+ add one more little man</button>
+          </div>
+        </div>
+      </section>
     </main>
   </div>
 
 <script>
 (() => {
   const note = document.getElementById("note");
-  const runner = document.getElementById("runner");
-  const man = document.getElementById("man");
-  const bubble = document.getElementById("bubble");
+  const addBtn = document.getElementById("add");
+  const countEl = document.getElementById("count");
 
   // Focus shortcut
   window.addEventListener("keydown", (e) => {
@@ -148,11 +180,8 @@
     }
   });
 
-  const prefersReducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
-  if (prefersReducedMotion) return;
-
-  // Cursor target in viewport coords
-  let target = { x: window.innerWidth * 0.65, y: window.innerHeight * 0.55 };
+  // Target (cursor)
+  let target = { x: window.innerWidth * 0.6, y: window.innerHeight * 0.6 };
   let hasPointer = false;
 
   function setTarget(e){
@@ -163,44 +192,105 @@
   window.addEventListener("pointermove", setTarget, { passive: true });
   window.addEventListener("pointerdown", setTarget, { passive: true });
 
-  // Runner physics (pos is CENTER coords!)
-  const pos = { x: window.innerWidth * 0.18, y: window.innerHeight * 0.60 };
-  const vel = { x: 0, y: 0 };
+  // Reduced motion: keep visible, just slow down a lot
+  const prefersReducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
 
   let paused = false;
   let fast = false;
 
-  const cfg = {
-    accel: 0.020,
-    maxSpeed: 1.55,   // px/ms
+  const CFG = {
+    accel: prefersReducedMotion ? 0.004 : 0.020,
+    maxSpeed: prefersReducedMotion ? 0.45 : 1.55, // px/ms
     friction: 0.86,
-    catchRadius: 12,  // measured from center-to-cursor
-    stopMs: 260
+    catchRadius: 12,
+    stopMs: 260,
+    speakMs: 1600,
+    speakCooldownMs: 650
   };
 
   function clamp(v,a,b){ return Math.max(a, Math.min(b, v)); }
 
-  let stopUntil = 0;
-  let speakUntil = 0;
-  let lastSpeak = 0;
+  // Create one runner DOM + state
+  const men = [];
+  function createMan(seedX, seedY) {
+    const el = document.createElement("div");
+    el.className = "runner";
 
-  // Facing direction without rotation; only mirror the man
-  let facing = 1;
+    const man = document.createElement("div");
+    man.className = "man";
+    man.innerHTML = `
+      <svg viewBox="0 0 64 64" aria-hidden="true">
+        <circle cx="30" cy="14" r="9" fill="#FFD400"/>
+        <path d="M24 24 C24 20, 36 20, 36 24 L38 40 C38 46, 22 46, 22 40 Z" fill="#FFD400"/>
+        <path d="M23 27 C16 28, 12 33, 11 37 C10 40, 13 42, 15 40 C17 37, 19 34, 25 33 Z" fill="#FFD400"/>
+        <path d="M37 27 C44 28, 50 32, 53 36 C55 39, 53 42, 50 41 C46 39, 43 35, 36 34 Z" fill="#FFD400"/>
+        <path d="M26 41 C22 47, 19 52, 18 56 C18 59, 22 60, 24 57 C27 53, 30 48, 32 45 Z" fill="#FFD400"/>
+        <path d="M34 41 C37 47, 41 52, 45 56 C47 58, 50 56, 49 53 C47 49, 43 45, 38 42 Z" fill="#FFD400"/>
+      </svg>
+    `;
 
-  // subtle bob while moving
-  let bobT = 0;
+    const bubble = document.createElement("div");
+    bubble.className = "bubble";
+    bubble.textContent = "smnth will be later here, now go away";
 
-  function render() {
-    const bob = Math.sin(bobT) * 1.0;
-    runner.style.transform = `translate(${pos.x}px, ${pos.y + bob}px) translate(-50%, -50%)`;
-    man.style.transform = `scaleX(${facing})`;
+    el.appendChild(man);
+    el.appendChild(bubble);
+    document.body.appendChild(el);
+
+    const state = {
+      el, man, bubble,
+      pos: { x: seedX, y: seedY },
+      vel: { x: 0, y: 0 },
+      facing: 1,
+      bobT: 0,
+      stopUntil: 0,
+      speakUntil: 0,
+      lastSpeak: 0,
+    };
+
+    // render immediately so it never “vanishes” on refresh
+    el.style.left = state.pos.x + "px";
+    el.style.top = state.pos.y + "px";
+    men.push(state);
+    countEl.textContent = String(men.length);
   }
 
-  function step(now){
-    const dt = clamp(now - (step._last || now), 8, 28);
-    step._last = now;
+  // Seed positions based on textarea (stable after refresh)
+  function seedNearTextarea(offset01 = 0.25) {
+    const r = note.getBoundingClientRect();
+    const x = r.left + r.width * offset01;
+    const y = r.top + r.height * 0.55;
+    return { x, y };
+  }
 
-    // If no pointer yet, chase the textarea area (stable after refresh)
+  // Ensure layout is ready (double rAF)
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      const s = seedNearTextarea(0.25);
+      createMan(s.x, s.y);
+    });
+  });
+
+  addBtn.addEventListener("click", () => {
+    const base = seedNearTextarea(0.25);
+    // spread new men a bit so they don't stack perfectly
+    const jitter = (n) => (Math.random() - 0.5) * n;
+    createMan(
+      clamp(base.x + jitter(120), 0, window.innerWidth),
+      clamp(base.y + jitter(120), 0, window.innerHeight)
+    );
+  });
+
+  window.addEventListener("keydown", (e) => {
+    if (e.key === " ") { e.preventDefault(); paused = !paused; }
+    if (e.key.toLowerCase() === "q") fast = !fast;
+  });
+
+  function tick(now) {
+    const dt = clamp(now - (tick._last || now), 8, 28);
+    tick._last = now;
+
+    // If user never moved pointer yet, chase the textarea region
     if (!hasPointer) {
       const r = note.getBoundingClientRect();
       target.x = r.left + r.width * 0.75;
@@ -208,71 +298,71 @@
     }
 
     const speedMul = fast ? 1.9 : 1.0;
-    const stopped = now < stopUntil;
 
-    if (!paused && !stopped) {
-      const dx = target.x - pos.x;
-      const dy = target.y - pos.y;
-      const dist = Math.hypot(dx, dy) || 1;
+    for (const m of men) {
+      const stopped = now < m.stopUntil;
 
-      if (Math.abs(dx) > 2) facing = dx >= 0 ? 1 : -1;
+      if (!paused && !stopped) {
+        const dx = target.x - m.pos.x;
+        const dy = target.y - m.pos.y;
+        const dist = Math.hypot(dx, dy) || 1;
 
-      const ax = (dx / dist) * cfg.accel * dt * speedMul;
-      const ay = (dy / dist) * cfg.accel * dt * speedMul;
+        if (Math.abs(dx) > 2) m.facing = dx >= 0 ? 1 : -1;
 
-      vel.x = (vel.x + ax) * cfg.friction;
-      vel.y = (vel.y + ay) * cfg.friction;
+        const ax = (dx / dist) * CFG.accel * dt * speedMul;
+        const ay = (dy / dist) * CFG.accel * dt * speedMul;
 
-      const sp = Math.hypot(vel.x, vel.y) || 1;
-      const maxV = cfg.maxSpeed * dt * speedMul;
-      if (sp > maxV) {
-        vel.x = (vel.x / sp) * maxV;
-        vel.y = (vel.y / sp) * maxV;
-      }
+        m.vel.x = (m.vel.x + ax) * CFG.friction;
+        m.vel.y = (m.vel.y + ay) * CFG.friction;
 
-      pos.x += vel.x;
-      pos.y += vel.y;
-
-      // Keep the CENTER inside viewport
-      pos.x = clamp(pos.x, 0, window.innerWidth);
-      pos.y = clamp(pos.y, 0, window.innerHeight);
-
-      // Catch: snap center exactly to cursor center
-      if (dist < cfg.catchRadius) {
-        pos.x = target.x;
-        pos.y = target.y;
-        vel.x = 0; vel.y = 0;
-        stopUntil = now + cfg.stopMs;
-
-        // Speak on catch (but not spamming every frame)
-        if (now - lastSpeak > 650) {
-          lastSpeak = now;
-          speakUntil = now + 1400;
-          bubble.classList.add("on");
+        const sp = Math.hypot(m.vel.x, m.vel.y) || 1;
+        const maxV = CFG.maxSpeed * dt * speedMul;
+        if (sp > maxV) {
+          m.vel.x = (m.vel.x / sp) * maxV;
+          m.vel.y = (m.vel.y / sp) * maxV;
         }
+
+        m.pos.x += m.vel.x;
+        m.pos.y += m.vel.y;
+
+        m.pos.x = clamp(m.pos.x, 0, window.innerWidth);
+        m.pos.y = clamp(m.pos.y, 0, window.innerHeight);
+
+        // Catch: snap CENTER exactly to cursor
+        if (dist < CFG.catchRadius) {
+          m.pos.x = target.x;
+          m.pos.y = target.y;
+          m.vel.x = 0; m.vel.y = 0;
+          m.stopUntil = now + CFG.stopMs;
+
+          // Speak on catch (cooldown)
+          if (now - m.lastSpeak > CFG.speakCooldownMs) {
+            m.lastSpeak = now;
+            m.speakUntil = now + CFG.speakMs;
+            m.bubble.classList.add("on");
+          }
+        }
+
+        // bob only when moving
+        const speed01 = clamp(sp / (maxV + 1e-6), 0, 1);
+        m.bobT += dt * 0.01 * (0.6 + speed01 * 2.0);
       }
 
-      // bob only when moving
-      const speed01 = clamp(sp / (maxV + 1e-6), 0, 1);
-      bobT += dt * 0.01 * (0.6 + speed01 * 2.0);
+      // hide bubble when expired
+      if (m.bubble.classList.contains("on") && now > m.speakUntil) {
+        m.bubble.classList.remove("on");
+      }
+
+      const bob = Math.sin(m.bobT) * 1.0;
+      m.el.style.left = m.pos.x + "px";
+      m.el.style.top  = (m.pos.y + bob) + "px";
+      m.man.style.transform = `scaleX(${m.facing})`;
     }
 
-    // Hide bubble when time expires
-    if (bubble.classList.contains("on") && now > speakUntil) {
-      bubble.classList.remove("on");
-    }
-
-    render();
-    requestAnimationFrame(step);
+    requestAnimationFrame(tick);
   }
 
-  window.addEventListener("keydown", (e) => {
-    if (e.key === " ") { e.preventDefault(); paused = !paused; }
-    if (e.key.toLowerCase() === "q") fast = !fast;
-  });
-
-  // Start after one frame to ensure layout is ready (helps on refresh)
-  requestAnimationFrame(() => requestAnimationFrame(step));
+  requestAnimationFrame(tick);
 })();
 </script>
 </body>
