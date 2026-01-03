@@ -6,7 +6,11 @@
   <title>DL engineer</title>
   <style>
     *{ box-sizing:border-box; }
-    html,body{ height:100%; margin:0; background:#fff; overflow:hidden; font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial; }
+    html,body{
+      height:100%; margin:0; background:#fff; overflow:hidden;
+      font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;
+    }
+    body{ touch-action:none; } /* helps prevent double-tap zoom and makes gestures reliable */
 
     header{
       position:fixed; left:0; right:0; top:0;
@@ -15,19 +19,6 @@
       border-bottom:1px solid rgba(0,0,0,0.10);
       background:#fff; user-select:none; z-index:10;
     }
-
-    .hint{
-      position:fixed; right:10px; top:10px;
-      font-size:11px; color:rgba(0,0,0,0.45);
-      background:rgba(255,255,255,0.78);
-      border:1px solid rgba(0,0,0,0.08);
-      padding:6px 8px; border-radius:10px;
-      z-index:20; user-select:none;
-      opacity:0; transform:translateY(-4px);
-      transition:opacity .25s ease, transform .25s ease;
-      pointer-events:none;
-    }
-    .hint.on{ opacity:1; transform:translateY(0); }
 
     /* Transparent FX overlay */
     #fx{
@@ -112,8 +103,7 @@
   </style>
 </head>
 <body>
-  <header>Fedorov Grigory | DL engineer | Pretrain Infra </header>
-  <div id="hint" class="hint"></div>
+  <header>DL engineer</header>
   <canvas id="fx"></canvas>
 
 <script>
@@ -124,10 +114,20 @@
   const HEADER_H = 44;
 
   // Phrase when they surround cursor
-  const CATCH_PHRASE = "there will be something here later, but for now go away";
+  const CATCH_PHRASE = "there will be something here, but later, but for now go away";
 
-  // Mobile explosion gesture
-  const TOUCH = { holdMs: 450, moveCancelPx: 12 };
+  // Announcer (one guy at start keeps repeating until he dies)
+  const ANNOUNCER = {
+    intervalMs: 2200,
+    phraseDesktop: "please don't right-click",
+    phraseMobile: "please don't double-tap"
+  };
+
+  // Mobile: double tap detection
+  const DOUBLE_TAP = {
+    maxDelayMs: 320,
+    maxDistPx: 22
+  };
 
   // Movement
   const CFG = {
@@ -167,12 +167,6 @@
   };
 
   const isTouch = (('ontouchstart' in window) || (navigator.maxTouchPoints > 0));
-
-  // Hint
-  const hintEl = document.getElementById("hint");
-  hintEl.textContent = isTouch ? "long-press or 2-finger tap = explosion" : "right-click = explosion";
-  requestAnimationFrame(() => hintEl.classList.add("on"));
-  setTimeout(() => hintEl.classList.remove("on"), 4200);
 
   // Disable context menu so right-click can be used
   addEventListener("contextmenu", (e) => e.preventDefault());
@@ -291,7 +285,10 @@
     }
   }
 
-  function spawnMan(x, y){
+  // One announcer created on init only
+  let announcerRef = null;
+
+  function spawnMan(x, y, { isAnnouncer=false } = {}){
     if (men.length >= MAX_MEN) return;
     y = clamp(y, HEADER_H, innerHeight);
 
@@ -310,7 +307,10 @@
       lastSpeak: 0,
 
       orbitAngle: null,
-      orbitRadius: ORBIT.r + (Math.random() - 0.5) * ORBIT.jitter
+      orbitRadius: ORBIT.r + (Math.random() - 0.5) * ORBIT.jitter,
+
+      isAnnouncer,
+      nextAnnounceAt: 0
     };
 
     el.style.left = x + "px";
@@ -319,6 +319,8 @@
     men.push(m);
     reassignOrbitSlots();
     applyPose(m, 0, 0);
+
+    if (isAnnouncer) announcerRef = m;
   }
 
   function say(m, text, ms){
@@ -404,6 +406,9 @@
     const idx = men.indexOf(m);
     if (idx >= 0) men.splice(idx, 1);
 
+    // if announcer dies, we don't replace him
+    if (m === announcerRef) announcerRef = null;
+
     try { m.el.remove(); } catch {}
 
     spawnCorpse(x, y, facing);
@@ -431,7 +436,7 @@
     m.parts.shinR.setAttribute("transform", rot(base - amp * s, ...KNEE_R));
   }
 
-  // ===== Explosion FX (no expanding ring) =====
+  // ===== Explosion FX (no expanding rings) =====
   const fx = document.getElementById("fx");
   const ctx = fx.getContext("2d", { alpha:true });
 
@@ -607,7 +612,7 @@
   }
   requestAnimationFrame(fxLoop);
 
-  // ===== Smart speech: panic + escalation, simple english warnings =====
+  // ===== Warnings (mobile = double tap) =====
   const desktopWarnings = [
     "please don't right-click",
     "no right-click, please",
@@ -616,13 +621,14 @@
     "no explosions, please"
   ];
   const mobileWarnings = [
-    "please don't long-press",
-    "no long-press, please",
-    "please stop long-pressing",
+    "please don't double-tap",
+    "no double-tap, please",
+    "please stop double-tapping",
     "please don't do that",
     "no explosions, please"
   ];
 
+  // ===== Smart speech: panic + escalation =====
   let explosionCount = 0;
   let heat = 0;
   let lastHeatUpdate = performance.now();
@@ -633,24 +639,20 @@
     const decay = Math.pow(0.5, dt / SPEECH.heatHalfLifeMs);
     heat *= decay;
   }
-
   function addHeat(now){
     updateHeat(now);
     heat += SPEECH.heatBoostPerExplosion;
   }
-
   function heatLevel(now){
     updateHeat(now);
     return 1 - Math.exp(-heat * 0.55); // 0..1
   }
-
   function escalationLevel(){
     if (explosionCount >= SPEECH.escalationStep3) return 3;
     if (explosionCount >= SPEECH.escalationStep2) return 2;
     if (explosionCount >= SPEECH.escalationStep1) return 1;
     return 0;
   }
-
   function speechPool(){
     return isTouch ? mobileWarnings : desktopWarnings;
   }
@@ -711,7 +713,7 @@
     }
   }
 
-  // ===== INPUTS: Desktop + Mobile =====
+  // ===== INPUTS =====
 
   // Desktop: right-click
   addEventListener("pointerdown", (e) => {
@@ -722,78 +724,68 @@
     }
   }, { passive: false });
 
-  // Mobile: long-press OR two-finger tap
-  let holdTimer = null;
-  let touchStartX = 0, touchStartY = 0;
-  let holding = false;
-  let holdX = 0, holdY = 0;
-
-  function clearHold(){
-    if (holdTimer) { clearTimeout(holdTimer); holdTimer = null; }
-    holding = false;
-  }
+  // Mobile: double tap
+  let lastTapTime = 0;
+  let lastTapX = 0;
+  let lastTapY = 0;
 
   function touchPoint(e){
-    const t = e.touches[0] || e.changedTouches[0];
+    const t = e.changedTouches[0] || e.touches[0];
     return { x: t.clientX, y: t.clientY };
-  }
-
-  function twoFingerMid(e){
-    const a = e.touches[0], b = e.touches[1];
-    return { x: (a.clientX + b.clientX)/2, y: (a.clientY + b.clientY)/2 };
   }
 
   addEventListener("touchstart", (e) => {
     if (!isTouch) return;
     e.preventDefault();
+    const p = touchPoint(e);
+    setTarget(p.x, p.y);
+  }, { passive:false });
 
-    if (e.touches.length === 2) {
-      clearHold();
-      const p = twoFingerMid(e);
-      setTarget(p.x, p.y);
+  addEventListener("touchend", (e) => {
+    if (!isTouch) return;
+    e.preventDefault();
+
+    const now = performance.now();
+    const p = touchPoint(e);
+    setTarget(p.x, p.y);
+
+    const dt = now - lastTapTime;
+    const dist = Math.hypot(p.x - lastTapX, p.y - lastTapY);
+
+    if (dt <= DOUBLE_TAP.maxDelayMs && dist <= DOUBLE_TAP.maxDistPx) {
+      // double tap detected
+      lastTapTime = 0;
       explode(p.x, p.y);
       return;
     }
 
-    if (e.touches.length === 1) {
-      const p = touchPoint(e);
-      setTarget(p.x, p.y);
-
-      holding = true;
-      holdX = p.x; holdY = p.y;
-      touchStartX = p.x; touchStartY = p.y;
-
-      clearHold();
-      holdTimer = setTimeout(() => {
-        if (holding) explode(holdX, holdY);
-        clearHold();
-      }, TOUCH.holdMs);
-    }
+    lastTapTime = now;
+    lastTapX = p.x;
+    lastTapY = p.y;
   }, { passive:false });
 
   addEventListener("touchmove", (e) => {
     if (!isTouch) return;
-    if (!holding || e.touches.length !== 1) return;
-
+    e.preventDefault();
     const p = touchPoint(e);
     setTarget(p.x, p.y);
-
-    const dx = p.x - touchStartX;
-    const dy = p.y - touchStartY;
-    if (Math.hypot(dx, dy) > TOUCH.moveCancelPx) clearHold();
   }, { passive:false });
-
-  addEventListener("touchend", () => { clearHold(); }, { passive:true });
-  addEventListener("touchcancel", () => { clearHold(); }, { passive:true });
 
   // ===== init population =====
   function init(){
-    for (let i = 0; i < DESIRED_MEN; i++) {
+    // spawn announcer first
+    const a = randomSpawnPoint();
+    spawnMan(a.x, a.y, { isAnnouncer: true });
+    // rest
+    for (let i = 1; i < DESIRED_MEN; i++) {
       const p = randomSpawnPoint();
       spawnMan(p.x, p.y);
     }
     maintainPopulation();
     scheduleNextChatter(performance.now());
+
+    // make announcer speak immediately (and keep repeating until death)
+    if (announcerRef) announcerRef.nextAnnounceAt = performance.now();
   }
   requestAnimationFrame(() => requestAnimationFrame(init));
 
@@ -805,6 +797,17 @@
     tick._last = now;
 
     if (!hasPointer) { target.x = innerWidth * 0.65; target.y = innerHeight * 0.45; }
+
+    // Announcer repeating message until death
+    if (announcerRef && announcerRef.alive) {
+      const phrase = isTouch ? ANNOUNCER.phraseMobile : ANNOUNCER.phraseDesktop;
+      if (now >= announcerRef.nextAnnounceAt && !announcerRef.bubble.classList.contains("on")) {
+        // bypass randomness: keep asking
+        announcerRef.lastSpeak = 0; // ensure say() isn't blocked by cooldown
+        say(announcerRef, phrase, 1600);
+        announcerRef.nextAnnounceAt = now + ANNOUNCER.intervalMs;
+      }
+    }
 
     maybeChatter(now);
 
