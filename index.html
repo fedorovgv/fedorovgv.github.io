@@ -2,9 +2,8 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <!-- iOS-friendly: prevents double-tap zoom from eating our gesture -->
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
-  <title>DL engineer</title>
+  <title>Fedorov Grigory</title>
   <style>
     *{ box-sizing:border-box; }
     html,body{
@@ -13,7 +12,7 @@
       background:#fff;
       overflow:hidden;
       font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;
-      touch-action:none; /* important for iOS pointer events */
+      touch-action:none;
       -webkit-touch-callout:none;
       -webkit-user-select:none;
       user-select:none;
@@ -27,7 +26,25 @@
       background:#fff; z-index:10;
     }
 
-    /* Transparent FX overlay */
+    #kills{
+      position:fixed;
+      right:10px; top:10px;
+      z-index:50;
+      font-size:12px;
+      color:rgba(0,0,0,0.75);
+      background:rgba(255,255,255,0.82);
+      border:1px solid rgba(0,0,0,0.10);
+      padding:6px 10px;
+      border-radius:14px;
+      display:flex;
+      gap:8px;
+      align-items:center;
+      user-select:none;
+    }
+    #kills .skull{ font-size:14px; }
+    #kills .num{ font-weight:700; }
+    #kills .lbl{ color:rgba(0,0,0,0.55); }
+
     #fx{
       position:fixed; inset:0;
       width:100vw; height:100vh;
@@ -43,6 +60,27 @@
       z-index:1000;
       filter:drop-shadow(0 10px 12px rgba(0,0,0,0.10));
       will-change:left,top;
+    }
+
+    /* HEALTH BAR: short */
+    .hpbar{
+      position:absolute;
+      width:22px;
+      height:6px;
+      left:50%;
+      top:-9px;
+      transform:translateX(-62%);
+      border-radius:6px;
+      background:rgba(255,255,255,0.9);
+      border:1px solid rgba(0,0,0,0.75);
+      overflow:hidden;
+    }
+    .hpfill{
+      height:100%;
+      width:100%;
+      border-radius:5px;
+      transform-origin:left center;
+      will-change:transform,background;
     }
 
     .man{ width:54px; height:54px; transform-origin:50% 50%; will-change:transform; }
@@ -63,7 +101,6 @@
       opacity:0;
       transform:translateY(-6px);
       transition:opacity .16s ease, transform .16s ease;
-      white-space:normal;
       pointer-events:none;
     }
     .bubble.on{ opacity:1; transform:translateY(0); }
@@ -91,7 +128,6 @@
     .corpse svg{ width:54px; height:54px; display:block; }
     .corpse.fade{ opacity:0; transition:opacity 520ms ease; }
 
-    /* SOUL: monotone grey + X eyes */
     .soul{
       position:fixed; left:0; top:0;
       width:64px; height:64px;
@@ -107,36 +143,35 @@
   </style>
 </head>
 <body>
-  <header>Fedorov Grigory | DL engineer | Pretrain Infra </header>
+  <header>Fedorov Grigory | DL engineer | Pretrain Infra</header>
+  <div id="kills"><span class="skull">💀</span><span class="num" id="killsNum">0</span><span class="lbl">page defenders</span></div>
   <canvas id="fx"></canvas>
 
 <script>
 (() => {
-  const isTouchMob = (('ontouchstart' in window) || (navigator.maxTouchPoints > 0));
+  const isTouch = (('ontouchstart' in window) || (navigator.maxTouchPoints > 0));
+  const DESIRED_MEN = isTouch ? 7 : 10;
+  const MAX_MEN     = isTouch ? 7 : 10;
 
-  // limit on mobile
-  const DESIRED_MEN = isTouchMob ? 7 : 10;
-  const MAX_MEN     = isTouchMob ? 7 : 10;
-  const EXPLOSION_RADIUS = 170;
   const HEADER_H = 44;
 
-  // phrase when they surround cursor
+  // ✅ Much smaller explosion radius
+  const EXPLOSION_RADIUS = isTouch ? 120 : 140;
+
+  const EXPLOSION_MAX_DAMAGE = 95;
+  const EXPLOSION_FALLOFF_P  = 1.55;
+
+  const MAX_HP = 100;
   const CATCH_PHRASE = "there will be something here, but later, but for now go away";
 
-  // announcer: one guy keeps repeating until he dies
   const ANNOUNCER = {
     intervalMs: 2200,
     phraseDesktop: "please don't right-click",
     phraseMobile: "please don't double-tap"
   };
 
-  // double-tap detection thresholds
-  const DOUBLE_TAP = {
-    maxDelayMs: 330,
-    maxDistPx: 24
-  };
+  const DOUBLE_TAP = { maxDelayMs: 330, maxDistPx: 24 };
 
-  // movement
   const CFG = {
     accel: 0.020,
     maxSpeed: 1.70,
@@ -145,40 +180,28 @@
     stopMs: 240
   };
 
-  // gather around cursor in a circle
   const ORBIT = { r: 56, jitter: 10 };
 
-  // souls
   const SOUL = {
-    risePxPerMs: 0.16,
-    lifeMs: 6200,
-    driftX: 240,
-    waveAmp: [28, 46],
-    waveFreq: [0.005, 0.009],
-    fadeStart: 2600
+    risePxPerMs: 0.145,
+    lifeMs: 6800,
+    driftX: 230,
+    waveAmp: [22, 40],
+    waveFreq: [0.0045, 0.0082],
+    fadeStart: 2900
   };
 
-  // speech
   const SPEECH = {
     minGapMsBase: 9000,
     gapPanicMultiplier: 0.35,
     durationMs: 1600,
     cooldownPerManMs: 1400,
-
     heatHalfLifeMs: 8500,
-    heatBoostPerExplosion: 1.0,
-
-    escalationStep1: 3,
-    escalationStep2: 6,
-    escalationStep3: 10
+    heatBoostPerExplosion: 1.0
   };
 
-  const isTouch = (('ontouchstart' in window) || (navigator.maxTouchPoints > 0));
-
-  // disable context menu (desktop right-click explosion)
   addEventListener("contextmenu", (e) => e.preventDefault());
 
-  // pointer target (fallback if no movement yet)
   let target = { x: innerWidth * 0.65, y: innerHeight * 0.45 };
   let hasPointer = false;
   function setTarget(x, y){ hasPointer = true; target.x = x; target.y = y; }
@@ -186,11 +209,16 @@
 
   const men = [];
 
-  // ===== SVGs =====
-  function baseManSVG({ color, outline, deadEyes }) {
+  let killedCount = 0;
+  const killsNumEl = document.getElementById("killsNum");
+  function incKills(n=1){
+    killedCount += n;
+    killsNumEl.textContent = String(killedCount);
+  }
+
+  // ===== SVGs (✅ no wings anywhere) =====
+  function baseManSVG({ color, deadEyes, straightLegs=false, soulArmsDown=false }) {
     const fill = color;
-    const out = outline ? "rgba(0,0,0,0.30)" : "none";
-    const outW = outline ? 2.2 : 0;
 
     const LIMB = 6.0;
     const THIGH = 7.0;
@@ -208,43 +236,58 @@
       </g>
     ` : "";
 
+    const arms = soulArmsDown ? `
+      <path d="M26 30 L26 44" stroke="${fill}" stroke-width="${LIMB}" stroke-linecap="round" />
+      <path d="M38 30 L38 44" stroke="${fill}" stroke-width="${LIMB}" stroke-linecap="round" />
+    ` : `
+      <path d="M24 30 L12 38" stroke="${fill}" stroke-width="${LIMB}" stroke-linecap="round" />
+      <path d="M40 30 L52 38" stroke="${fill}" stroke-width="${LIMB}" stroke-linecap="round" />
+    `;
+
+    const legs = straightLegs ? `
+      <path d="M29 48 L29 76" stroke="${fill}" stroke-width="${LIMB}" stroke-linecap="round" />
+      <path d="M35 48 L35 76" stroke="${fill}" stroke-width="${LIMB}" stroke-linecap="round" />
+    ` : `
+      <path d="M29 48 L23 61" stroke="${fill}" stroke-width="${THIGH}" stroke-linecap="round" />
+      <path d="M35 48 L41 61" stroke="${fill}" stroke-width="${THIGH}" stroke-linecap="round" />
+
+      <g class="shinL">
+        <path d="M23 61 L30 76" stroke="${fill}" stroke-width="${LIMB}" stroke-linecap="round" />
+      </g>
+      <g class="shinR">
+        <path d="M41 61 L34 76" stroke="${fill}" stroke-width="${LIMB}" stroke-linecap="round" />
+      </g>
+
+      <rect x="19.5" y="58.7" width="${KNEE_CAP_W}" height="${KNEE_CAP_H}" rx="3.2" fill="${fill}" />
+      <rect x="37.1" y="58.7" width="${KNEE_CAP_W}" height="${KNEE_CAP_H}" rx="3.2" fill="${fill}" />
+    `;
+
     return `
       <svg viewBox="0 0 64 78" aria-hidden="true">
-        <g stroke="${out}" stroke-width="${outW}" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="32" cy="13.5" r="9.3" fill="${fill}" />
-          ${eyes}
-
-          <path d="M32 21 L32 29" stroke="${fill}" stroke-width="${NECK}" />
-          <ellipse cx="32" cy="38" rx="8.9" ry="14.5" fill="${fill}" />
-
-          <path d="M24 30 L12 38" stroke="${fill}" stroke-width="${LIMB}" />
-          <path d="M40 30 L52 38" stroke="${fill}" stroke-width="${LIMB}" />
-
-          <ellipse cx="32" cy="48" rx="8.2" ry="6.0" fill="${fill}" />
-
-          <path d="M29 48 L23 61" stroke="${fill}" stroke-width="${THIGH}" />
-          <path d="M35 48 L41 61" stroke="${fill}" stroke-width="${THIGH}" />
-
-          <g class="shinL">
-            <path d="M23 61 L30 76" stroke="${fill}" stroke-width="${LIMB}" />
-          </g>
-          <g class="shinR">
-            <path d="M41 61 L34 76" stroke="${fill}" stroke-width="${LIMB}" />
-          </g>
-
-          <rect x="19.5" y="58.7" width="${KNEE_CAP_W}" height="${KNEE_CAP_H}" rx="3.2" fill="${fill}" />
-          <rect x="37.1" y="58.7" width="${KNEE_CAP_W}" height="${KNEE_CAP_H}" rx="3.2" fill="${fill}" />
-        </g>
+        <circle cx="32" cy="13.5" r="9.3" fill="${fill}" />
+        ${eyes}
+        <path d="M32 21 L32 29" stroke="${fill}" stroke-width="${NECK}" stroke-linecap="round" />
+        <ellipse cx="32" cy="38" rx="8.9" ry="14.5" fill="${fill}" />
+        ${arms}
+        <ellipse cx="32" cy="48" rx="8.2" ry="6.0" fill="${fill}" />
+        ${legs}
       </svg>
     `;
   }
-  function aliveSVG(){ return baseManSVG({ color:"#FFD400", outline:false, deadEyes:false }); }
-  function soulSVG(){  return baseManSVG({ color:"#CFCFCF", outline:false, deadEyes:true  }); }
-  function corpseSVG(){return baseManSVG({ color:"#F2F2F2", outline:false, deadEyes:true  }); }
+
+  function aliveSVG(){ return baseManSVG({ color:"#FFD400", deadEyes:false, straightLegs:false, soulArmsDown:false }); }
+  function corpseSVG(){return baseManSVG({ color:"#F2F2F2", deadEyes:true,  straightLegs:false, soulArmsDown:false }); }
+  function soulSVG(){  return baseManSVG({ color:"#CFCFCF", deadEyes:true,  straightLegs:true,  soulArmsDown:true  }); }
 
   function makeRunnerElement(){
     const el = document.createElement("div");
     el.className = "runner";
+
+    const hpbar = document.createElement("div");
+    hpbar.className = "hpbar";
+    const hpfill = document.createElement("div");
+    hpfill.className = "hpfill";
+    hpbar.appendChild(hpfill);
 
     const man = document.createElement("div");
     man.className = "man";
@@ -254,8 +297,10 @@
     bubble.className = "bubble";
     bubble.textContent = "";
 
+    el.appendChild(hpbar);
     el.appendChild(man);
     el.appendChild(bubble);
+
     document.body.appendChild(el);
 
     const svg = man.querySelector("svg");
@@ -263,7 +308,8 @@
       shinL: svg.querySelector(".shinL"),
       shinR: svg.querySelector(".shinR"),
     };
-    return { el, man, bubble, parts };
+
+    return { el, man, bubble, hpfill, parts };
   }
 
   function clamp(v,a,b){ return Math.max(a, Math.min(b, v)); }
@@ -275,6 +321,57 @@
     const x = rand(pad, innerWidth - pad);
     const y = rand(HEADER_H + pad, innerHeight - pad);
     return { x, y };
+  }
+
+  function hpColor(ratio){
+    const r = Math.round(255 * (1 - ratio));
+    const g = Math.round(200 * ratio + 35);
+    const b = 50;
+    return `rgb(${r},${g},${b})`;
+  }
+
+  function updateHpUI(m){
+    const ratio = clamp(m.hp / m.maxHp, 0, 1);
+    m.hpfill.style.transform = `scaleX(${ratio.toFixed(3)})`;
+    m.hpfill.style.background = hpColor(ratio);
+  }
+
+  let announcerRef = null;
+
+  function spawnMan(x, y, { isAnnouncer=false } = {}){
+    if (men.length >= MAX_MEN) return;
+    y = clamp(y, HEADER_H, innerHeight);
+
+    const { el, man, bubble, hpfill, parts } = makeRunnerElement();
+
+    const m = {
+      el, man, bubble, hpfill, parts,
+      alive: true,
+      pos: { x, y },
+      vel: { x: 0, y: 0 },
+      facing: 1,
+      bobT: 0,
+      phase: Math.random() * Math.PI * 2,
+      stopUntil: 0,
+      speakUntil: 0,
+      lastSpeak: 0,
+      orbitAngle: null,
+      orbitRadius: ORBIT.r + (Math.random() - 0.5) * ORBIT.jitter,
+      isAnnouncer,
+      nextAnnounceAt: 0,
+      hp: MAX_HP,
+      maxHp: MAX_HP
+    };
+
+    el.style.left = x + "px";
+    el.style.top  = y + "px";
+    updateHpUI(m);
+
+    men.push(m);
+    reassignOrbitSlots();
+    applyPose(m, 0, 0);
+
+    if (isAnnouncer) announcerRef = m;
   }
 
   function reassignOrbitSlots(){
@@ -290,44 +387,6 @@
       const p = randomSpawnPoint();
       spawnMan(p.x, p.y);
     }
-  }
-
-  // announcer ref
-  let announcerRef = null;
-
-  function spawnMan(x, y, { isAnnouncer=false } = {}){
-    if (men.length >= MAX_MEN) return;
-    y = clamp(y, HEADER_H, innerHeight);
-
-    const { el, man, bubble, parts } = makeRunnerElement();
-    const m = {
-      el, man, bubble, parts,
-      alive: true,
-      pos: { x, y },
-      vel: { x: 0, y: 0 },
-      facing: 1,
-      bobT: 0,
-      phase: Math.random() * Math.PI * 2,
-      stopUntil: 0,
-
-      speakUntil: 0,
-      lastSpeak: 0,
-
-      orbitAngle: null,
-      orbitRadius: ORBIT.r + (Math.random() - 0.5) * ORBIT.jitter,
-
-      isAnnouncer,
-      nextAnnounceAt: 0
-    };
-
-    el.style.left = x + "px";
-    el.style.top  = y + "px";
-
-    men.push(m);
-    reassignOrbitSlots();
-    applyPose(m, 0, 0);
-
-    if (isAnnouncer) announcerRef = m;
   }
 
   function say(m, text, ms){
@@ -356,7 +415,6 @@
     svg.style.transform = `scaleX(${facing})`;
 
     document.body.appendChild(c);
-
     setTimeout(() => c.classList.add("fade"), 520);
     setTimeout(() => c.remove(), 1100);
   }
@@ -417,6 +475,7 @@
 
     try { m.el.remove(); } catch {}
 
+    incKills(1);
     spawnCorpse(x, y, facing);
     setTimeout(() => spawnSoul(x, y, facing), 90);
 
@@ -424,25 +483,52 @@
     maintainPopulation();
   }
 
-  // ===== legs: shins only =====
+  // ===== Walking =====
   const KNEE_L = [23, 61];
   const KNEE_R = [41, 61];
   function rot(angleDeg, cx, cy){ return `rotate(${angleDeg.toFixed(2)} ${cx} ${cy})`; }
+  function swing01(u){ return Math.sin(Math.PI * u); }
+  function lerp(a,b,t){ return a + (b-a)*t; }
 
   function applyPose(m, speedPerMs, dt){
     const moving = speedPerMs > 0.08 && dt > 0;
-    const freq = moving ? (7.2 + speedPerMs * 8.0) : 1.6;
-    if (dt) m.phase += (dt / 1000) * freq;
+    const freq = moving ? (1.75 + speedPerMs * 5.8) : 0.6;
+    if (dt) m.phase += (dt / 1000) * (Math.PI * 2) * freq;
 
-    const s = Math.sin(m.phase);
-    const base = 6;
-    const amp  = moving ? 14 : 5;
+    if (!m.parts.shinL || !m.parts.shinR) return;
+    const t = (m.phase / (Math.PI * 2)) % 1;
 
-    m.parts.shinL.setAttribute("transform", rot(base + amp * s, ...KNEE_L));
-    m.parts.shinR.setAttribute("transform", rot(base - amp * s, ...KNEE_R));
+    const base = 0;
+    const swingBack = -26;
+    const swingFront = 40;
+    const stanceMin = -6;
+    const stanceMax = 16;
+
+    let leftAngle = base, rightAngle = base;
+
+    if (t < 0.5) {
+      const u = t * 2;
+      const sv = swing01(u);
+      rightAngle = base + lerp(swingBack, swingFront, sv);
+      leftAngle  = base + lerp(stanceMax, stanceMin, sv) * 0.78;
+    } else {
+      const u = (t - 0.5) * 2;
+      const sv = swing01(u);
+      leftAngle  = base + lerp(swingBack, swingFront, sv);
+      rightAngle = base + lerp(stanceMax, stanceMin, sv) * 0.78;
+    }
+
+    if (!moving) {
+      const w = Math.sin(m.phase) * 4.8;
+      leftAngle = base + w * 0.32;
+      rightAngle = base - w * 0.32;
+    }
+
+    m.parts.shinL.setAttribute("transform", rot(leftAngle, ...KNEE_L));
+    m.parts.shinR.setAttribute("transform", rot(rightAngle, ...KNEE_R));
   }
 
-  // ===== explosion fx (no rings) =====
+  // ===== Explosion FX =====
   const fx = document.getElementById("fx");
   const ctx = fx.getContext("2d", { alpha:true });
 
@@ -459,45 +545,27 @@
   addEventListener("resize", resizeFx);
 
   const explosions = [];
-
   function addExplosion(x,y){
-    const e = { x,y, t:0, life:1100, fire:[], smoke:[], sparks:[] };
+    const e = { x,y, t:0, life:1200, fire:[], smoke:[], sparks:[] };
 
     const fireN = 120;
     for (let i=0;i<fireN;i++){
       const ang = rand(0, Math.PI*2);
-      const sp  = rand(0.6, 4.8) * (0.65 + Math.random()*0.6);
-      const up  = rand(-1.2, -4.0);
-      e.fire.push({
-        x: x + rand(-3,3), y: y + rand(-3,3),
-        vx: Math.cos(ang)*sp, vy: Math.sin(ang)*sp + up,
-        r: rand(10, 28), life: rand(340, 720), age:0,
-        wob: rand(0, 10),
-      });
+      const sp  = rand(0.7, 5.0);
+      const up  = rand(-1.1, -4.0);
+      e.fire.push({ x:x+rand(-3,3), y:y+rand(-3,3), vx:Math.cos(ang)*sp, vy:Math.sin(ang)*sp+up, r:rand(10,28), life:rand(340,800), age:0, wob:rand(0,10) });
     }
-
-    const smokeN = 78;
+    const smokeN = 75;
     for (let i=0;i<smokeN;i++){
       const ang = rand(0, Math.PI*2);
       const sp  = rand(0.2, 2.1);
-      e.smoke.push({
-        x: x + rand(-6,6), y: y + rand(-6,6),
-        vx: Math.cos(ang)*sp, vy: Math.sin(ang)*sp + rand(-2.2, -0.6),
-        r: rand(18, 48), life: rand(740, 1280), age:0,
-        dens: rand(0.10, 0.22), swirl: rand(0.004, 0.012),
-      });
+      e.smoke.push({ x:x+rand(-6,6), y:y+rand(-6,6), vx:Math.cos(ang)*sp, vy:Math.sin(ang)*sp+rand(-2.4,-0.8), r:rand(18,50), life:rand(760,1320), age:0, dens:rand(0.10,0.22), swirl:rand(0.004,0.012) });
     }
-
-    const sparkN = 46;
+    const sparkN = 45;
     for (let i=0;i<sparkN;i++){
       const ang = rand(0, Math.PI*2);
-      const sp  = rand(3.0, 9.2);
-      e.sparks.push({
-        x,y,
-        vx: Math.cos(ang)*sp, vy: Math.sin(ang)*sp + rand(-1.5, 0.5),
-        life: rand(220, 560), age:0,
-        w: rand(1.0, 1.8), l: rand(10, 22),
-      });
+      const sp  = rand(3.0, 10.0);
+      e.sparks.push({ x,y, vx:Math.cos(ang)*sp, vy:Math.sin(ang)*sp+rand(-1.6,0.6), life:rand(240,600), age:0, w:rand(1.0,2.0), l:rand(10,24) });
     }
 
     explosions.push(e);
@@ -506,7 +574,6 @@
   function drawExplosion(e, dt){
     e.t += dt;
 
-    // smoke
     ctx.save();
     ctx.globalCompositeOperation = "source-over";
     for (const s of e.smoke){
@@ -521,13 +588,13 @@
       s.x += s.vx * dt * 0.06;
       s.y += s.vy * dt * 0.06;
 
-      const r = s.r * (0.75 + u * 1.45);
+      const r = s.r * (0.75 + u * 1.55);
       const a = s.dens * (1 - u);
 
       const g = ctx.createRadialGradient(s.x - r*0.2, s.y - r*0.2, r*0.2, s.x, s.y, r);
-      g.addColorStop(0, `rgba(40,40,40,${a*0.9})`);
-      g.addColorStop(0.5, `rgba(55,55,55,${a*0.6})`);
-      g.addColorStop(1, `rgba(55,55,55,0)`);
+      g.addColorStop(0, `rgba(40,40,40,${a*0.92})`);
+      g.addColorStop(0.5, `rgba(60,60,60,${a*0.62})`);
+      g.addColorStop(1, `rgba(60,60,60,0)`);
       ctx.fillStyle = g;
       ctx.beginPath();
       ctx.arc(s.x, s.y, r, 0, Math.PI*2);
@@ -535,7 +602,6 @@
     }
     ctx.restore();
 
-    // fire
     ctx.save();
     ctx.globalCompositeOperation = "lighter";
     for (const p of e.fire){
@@ -552,13 +618,13 @@
       p.x += p.vx * dt * 0.08;
       p.y += p.vy * dt * 0.08;
 
-      const rr = p.r * (0.7 + (1-u)*0.95);
-      const a = (1 - u) * 0.65;
+      const rr = p.r * (0.7 + (1-u)*1.05);
+      const a = (1 - u) * 0.70;
 
       const g = ctx.createRadialGradient(p.x - rr*0.25, p.y - rr*0.25, rr*0.18, p.x, p.y, rr);
-      g.addColorStop(0, `rgba(255,255,255,${a*0.95})`);
-      g.addColorStop(0.18, `rgba(255,235,160,${a*0.95})`);
-      g.addColorStop(0.45, `rgba(255,155,40,${a*0.85})`);
+      g.addColorStop(0, `rgba(255,255,255,${a*0.98})`);
+      g.addColorStop(0.18, `rgba(255,235,160,${a*0.98})`);
+      g.addColorStop(0.45, `rgba(255,155,40,${a*0.86})`);
       g.addColorStop(0.78, `rgba(255,70,0,${a*0.55})`);
       g.addColorStop(1, `rgba(60,20,0,0)`);
       ctx.fillStyle = g;
@@ -568,7 +634,6 @@
     }
     ctx.restore();
 
-    // sparks
     ctx.save();
     ctx.globalCompositeOperation = "lighter";
     for (const sp of e.sparks){
@@ -603,7 +668,6 @@
     const dt = Math.min(32, Math.max(8, now - lastFx));
     lastFx = now;
 
-    // fade by erasing, keeps canvas transparent
     ctx.save();
     ctx.globalCompositeOperation = "destination-out";
     ctx.fillStyle = "rgba(0,0,0,0.18)";
@@ -618,7 +682,6 @@
   }
   requestAnimationFrame(fxLoop);
 
-  // ===== warnings (mobile uses double-tap) =====
   const desktopWarnings = [
     "please don't right-click",
     "no right-click, please",
@@ -634,11 +697,8 @@
     "no explosions, please"
   ];
 
-  // ===== smart speech: panic + escalation =====
-  let explosionCount = 0;
   let heat = 0;
   let lastHeatUpdate = performance.now();
-
   function updateHeat(now){
     const dt = now - lastHeatUpdate;
     lastHeatUpdate = now;
@@ -653,34 +713,22 @@
     updateHeat(now);
     return 1 - Math.exp(-heat * 0.55);
   }
-  function escalationLevel(){
-    if (explosionCount >= SPEECH.escalationStep3) return 3;
-    if (explosionCount >= SPEECH.escalationStep2) return 2;
-    if (explosionCount >= SPEECH.escalationStep1) return 1;
-    return 0;
-  }
-  function speechPool(){
-    return isTouch ? mobileWarnings : desktopWarnings;
-  }
+  function speechPool(){ return isTouch ? mobileWarnings : desktopWarnings; }
 
   let nextChatterAt = performance.now() + 4500 + Math.random()*4500;
-
   function scheduleNextChatter(now){
     const hl = heatLevel(now);
     const gapBase = SPEECH.minGapMsBase;
     const gap = gapBase * (1 - hl * (1 - SPEECH.gapPanicMultiplier));
     nextChatterAt = now + gap + Math.random() * gap * 0.85;
   }
-
   function maybeChatter(now){
     if (now < nextChatterAt) return;
     scheduleNextChatter(now);
-
     if (men.length === 0) return;
 
     const hl = heatLevel(now);
-    const esc = escalationLevel();
-    const chance = clamp(0.22 + hl*0.55 + esc*0.06, 0, 0.90);
+    const chance = clamp(0.22 + hl*0.55, 0, 0.90);
     if (Math.random() > chance) return;
 
     const m = men[(Math.random()*men.length)|0];
@@ -690,23 +738,36 @@
     say(m, pick(speechPool()), SPEECH.durationMs);
   }
 
-  // ===== explosion logic =====
-  function explode(x, y){
-    const now = performance.now();
-    explosionCount++;
-    addHeat(now);
+  function computeDamage(dist){
+    if (dist >= EXPLOSION_RADIUS) return 0;
+    const t = 1 - (dist / EXPLOSION_RADIUS);
+    const shaped = Math.pow(t, EXPLOSION_FALLOFF_P);
+    return EXPLOSION_MAX_DAMAGE * shaped;
+  }
 
-    addExplosion(x, y);
-
+  function applyExplosionDamage(cx, cy){
     const snapshot = [...men];
     for (const m of snapshot) {
       if (!m.alive) continue;
-      const dx = m.pos.x - x;
-      const dy = m.pos.y - y;
-      if (Math.hypot(dx, dy) <= EXPLOSION_RADIUS) killMan(m);
-    }
+      const dx = m.pos.x - cx;
+      const dy = m.pos.y - cy;
+      const d = Math.hypot(dx, dy);
+      const dmg = computeDamage(d);
+      if (dmg <= 0) continue;
 
-    // immediate complain sometimes
+      m.hp = Math.max(0, m.hp - dmg);
+      updateHpUI(m);
+
+      if (m.hp <= 0) killMan(m);
+    }
+  }
+
+  function explode(x, y){
+    const now = performance.now();
+    addHeat(now);
+    addExplosion(x, y);
+    applyExplosionDamage(x, y);
+
     if (men.length > 0) {
       const hl = heatLevel(now);
       const immediateChance = clamp(0.18 + hl*0.52, 0, 0.88);
@@ -719,9 +780,7 @@
     }
   }
 
-  // ===== inputs =====
-
-  // desktop: right-click explosion
+  // Desktop: right click
   addEventListener("pointerdown", (e) => {
     setTarget(e.clientX, e.clientY);
     if (e.button === 2) {
@@ -730,11 +789,8 @@
     }
   }, { passive: false });
 
-  // mobile: double tap via pointer events (more reliable on iOS)
-  let lastTouchUpTime = 0;
-  let lastTouchX = 0;
-  let lastTouchY = 0;
-
+  // Mobile: double tap
+  let lastTouchUpTime = 0, lastTouchX = 0, lastTouchY = 0;
   function isNear(x1,y1,x2,y2,maxDist){
     return Math.hypot(x1-x2, y1-y2) <= maxDist;
   }
@@ -759,13 +815,12 @@
     e.preventDefault();
     const now = performance.now();
     const x = e.clientX, y = e.clientY;
-
     setTarget(x, y);
 
     const dt = now - lastTouchUpTime;
-    const dist = isNear(x, y, lastTouchX, lastTouchY, DOUBLE_TAP.maxDistPx);
+    const close = isNear(x, y, lastTouchX, lastTouchY, DOUBLE_TAP.maxDistPx);
 
-    if (lastTouchUpTime > 0 && dt <= DOUBLE_TAP.maxDelayMs && dist) {
+    if (lastTouchUpTime > 0 && dt <= DOUBLE_TAP.maxDelayMs && close) {
       lastTouchUpTime = 0;
       explode(x, y);
       return;
@@ -778,24 +833,30 @@
 
   // ===== init population =====
   function init(){
-    // announcer first
     const a = randomSpawnPoint();
     spawnMan(a.x, a.y, { isAnnouncer: true });
-
-    // rest
     for (let i = 1; i < DESIRED_MEN; i++) {
       const p = randomSpawnPoint();
       spawnMan(p.x, p.y);
     }
-
     maintainPopulation();
     scheduleNextChatter(performance.now());
-
     if (announcerRef) announcerRef.nextAnnounceAt = performance.now();
   }
   requestAnimationFrame(() => requestAnimationFrame(init));
 
-  // ===== main tick =====
+  // announcer speech loop
+  function announcerTick(now){
+    if (announcerRef && announcerRef.alive) {
+      const phrase = isTouch ? ANNOUNCER.phraseMobile : ANNOUNCER.phraseDesktop;
+      if (now >= announcerRef.nextAnnounceAt && !announcerRef.bubble.classList.contains("on")) {
+        announcerRef.lastSpeak = 0;
+        say(announcerRef, phrase, 1600);
+        announcerRef.nextAnnounceAt = now + ANNOUNCER.intervalMs;
+      }
+    }
+  }
+
   function clampDt(v){ return Math.max(8, Math.min(28, v)); }
 
   function tick(now){
@@ -804,16 +865,7 @@
 
     if (!hasPointer) { target.x = innerWidth * 0.65; target.y = innerHeight * 0.45; }
 
-    // announcer repeats until death
-    if (announcerRef && announcerRef.alive) {
-      const phrase = isTouch ? ANNOUNCER.phraseMobile : ANNOUNCER.phraseDesktop;
-      if (now >= announcerRef.nextAnnounceAt && !announcerRef.bubble.classList.contains("on")) {
-        announcerRef.lastSpeak = 0; // avoid cooldown blocking
-        say(announcerRef, phrase, 1600);
-        announcerRef.nextAnnounceAt = now + ANNOUNCER.intervalMs;
-      }
-    }
-
+    announcerTick(now);
     maybeChatter(now);
 
     for (const m of men) {
@@ -821,7 +873,6 @@
 
       const stopped = now < m.stopUntil;
 
-      // orbit target
       let tx = target.x;
       let ty = target.y;
       if (m.orbitAngle !== null) {
@@ -871,7 +922,6 @@
           m.vel.x = 0; m.vel.y = 0;
           m.stopUntil = now + CFG.stopMs;
 
-          // show "go away" when they surround cursor
           if (now - m.lastSpeak > SPEECH.cooldownPerManMs && !m.bubble.classList.contains("on")) {
             say(m, CATCH_PHRASE, 1400);
           }
@@ -884,7 +934,6 @@
 
       const speedNow = Math.hypot(m.vel.x, m.vel.y);
       const speedPerMs = speedNow / dt;
-
       applyPose(m, speedPerMs, dt);
 
       const moving = !stopped && speedPerMs > 0.08;
