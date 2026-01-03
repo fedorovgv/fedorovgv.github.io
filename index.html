@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="ru">
+<html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
@@ -16,12 +16,25 @@
       background:#fff; user-select:none; z-index:10;
     }
 
-    /* FX canvas: transparent overlay */
+    .hint{
+      position:fixed; right:10px; top:10px;
+      font-size:11px; color:rgba(0,0,0,0.45);
+      background:rgba(255,255,255,0.78);
+      border:1px solid rgba(0,0,0,0.08);
+      padding:6px 8px; border-radius:10px;
+      z-index:20; user-select:none;
+      opacity:0; transform:translateY(-4px);
+      transition:opacity .25s ease, transform .25s ease;
+      pointer-events:none;
+    }
+    .hint.on{ opacity:1; transform:translateY(0); }
+
+    /* Transparent FX overlay */
     #fx{
       position:fixed; inset:0;
       width:100vw; height:100vh;
       pointer-events:none;
-      z-index:2000; /* above men, but transparent */
+      z-index:2000;
     }
 
     .runner{
@@ -83,7 +96,7 @@
       transition:opacity 520ms ease;
     }
 
-    /* SOUL: monotone grey + X eyes, no glow */
+    /* SOUL: monotone grey + X eyes */
     .soul{
       position:fixed; left:0; top:0;
       width:64px; height:64px;
@@ -99,7 +112,8 @@
   </style>
 </head>
 <body>
-  <header> Fedorov Grigory | DL engineer | Pretrain Infra </header>
+  <header>Fedorov Grigory | DL engineer | Pretrain Infra </header>
+  <div id="hint" class="hint"></div>
   <canvas id="fx"></canvas>
 
 <script>
@@ -109,37 +123,69 @@
   const EXPLOSION_RADIUS = 170;
   const HEADER_H = 44;
 
+  // Phrase when they surround cursor
+  const CATCH_PHRASE = "there will be something here later, but for now go away";
+
+  // Mobile explosion gesture
+  const TOUCH = { holdMs: 450, moveCancelPx: 12 };
+
+  // Movement
   const CFG = {
     accel: 0.020,
     maxSpeed: 1.70,
     friction: 0.86,
     catchRadius: 14,
-    stopMs: 240,
-    speakMs: 1300,
-    speakCooldownMs: 650,
+    stopMs: 240
   };
 
-  // gather around cursor in a circle
+  // Gather around cursor in a circle
   const ORBIT = { r: 56, jitter: 10 };
 
+  // Souls
   const SOUL = {
-    risePxPerMs: 0.16,   // slower (more visible)
-    lifeMs: 6200,        // longer
+    risePxPerMs: 0.16,
+    lifeMs: 6200,
     driftX: 240,
     waveAmp: [28, 46],
     waveFreq: [0.005, 0.009],
-    fadeStart: 2600,
+    fadeStart: 2600
   };
 
+  // Smart speech system
+  const SPEECH = {
+    minGapMsBase: 9000,
+    gapPanicMultiplier: 0.35,
+    durationMs: 1600,
+    cooldownPerManMs: 1400,
+
+    heatHalfLifeMs: 8500,
+    heatBoostPerExplosion: 1.0,
+
+    escalationStep1: 3,
+    escalationStep2: 6,
+    escalationStep3: 10
+  };
+
+  const isTouch = (('ontouchstart' in window) || (navigator.maxTouchPoints > 0));
+
+  // Hint
+  const hintEl = document.getElementById("hint");
+  hintEl.textContent = isTouch ? "long-press or 2-finger tap = explosion" : "right-click = explosion";
+  requestAnimationFrame(() => hintEl.classList.add("on"));
+  setTimeout(() => hintEl.classList.remove("on"), 4200);
+
+  // Disable context menu so right-click can be used
   addEventListener("contextmenu", (e) => e.preventDefault());
 
-  let target = { x: innerWidth * 0.6, y: innerHeight * 0.6 };
+  // Pointer target (fallback if no movement yet)
+  let target = { x: innerWidth * 0.65, y: innerHeight * 0.45 };
   let hasPointer = false;
   function setTarget(x, y){ hasPointer = true; target.x = x; target.y = y; }
   addEventListener("pointermove", (e) => setTarget(e.clientX, e.clientY), { passive: true });
 
   const men = [];
 
+  // ===== SVGs =====
   function baseManSVG({ color, outline, deadEyes }) {
     const fill = color;
     const out = outline ? "rgba(0,0,0,0.30)" : "none";
@@ -191,7 +237,6 @@
       </svg>
     `;
   }
-
   function aliveSVG(){ return baseManSVG({ color:"#FFD400", outline:false, deadEyes:false }); }
   function soulSVG(){  return baseManSVG({ color:"#CFCFCF", outline:false, deadEyes:true  }); }
   function corpseSVG(){return baseManSVG({ color:"#F2F2F2", outline:false, deadEyes:true  }); }
@@ -206,7 +251,7 @@
 
     const bubble = document.createElement("div");
     bubble.className = "bubble";
-    bubble.textContent = "there will be smthng here! but for now - go away!";
+    bubble.textContent = "";
 
     el.appendChild(man);
     el.appendChild(bubble);
@@ -222,6 +267,7 @@
 
   function clamp(v,a,b){ return Math.max(a, Math.min(b, v)); }
   function rand(a,b){ return a + Math.random()*(b-a); }
+  function pick(arr){ return arr[(Math.random()*arr.length)|0]; }
 
   function randomSpawnPoint(){
     const pad = 26;
@@ -235,9 +281,7 @@
     const n = orbiters.length;
     if (n === 0) return;
     const offset = (performance.now() * 0.00035) % (Math.PI * 2);
-    for (let i = 0; i < n; i++) {
-      orbiters[i].orbitAngle = offset + i * (Math.PI * 2 / n);
-    }
+    for (let i = 0; i < n; i++) orbiters[i].orbitAngle = offset + i * (Math.PI * 2 / n);
   }
 
   function maintainPopulation(){
@@ -261,10 +305,12 @@
       bobT: 0,
       phase: Math.random() * Math.PI * 2,
       stopUntil: 0,
+
       speakUntil: 0,
       lastSpeak: 0,
+
       orbitAngle: null,
-      orbitRadius: ORBIT.r + (Math.random() - 0.5) * ORBIT.jitter,
+      orbitRadius: ORBIT.r + (Math.random() - 0.5) * ORBIT.jitter
     };
 
     el.style.left = x + "px";
@@ -273,6 +319,17 @@
     men.push(m);
     reassignOrbitSlots();
     applyPose(m, 0, 0);
+  }
+
+  function say(m, text, ms){
+    if (!m || !m.alive) return;
+    const now = performance.now();
+    if (now - m.lastSpeak < SPEECH.cooldownPerManMs) return;
+
+    m.lastSpeak = now;
+    m.speakUntil = now + ms;
+    m.bubble.textContent = text;
+    m.bubble.classList.add("on");
   }
 
   function spawnCorpse(x, y, facing){
@@ -332,10 +389,7 @@
       const alpha = Math.max(0, 1.0 - (fadeU / (lifeMs - SOUL.fadeStart)));
       s.style.opacity = alpha.toFixed(3);
 
-      if (ny < -110 || u >= lifeMs || alpha <= 0.01) {
-        s.remove();
-        return;
-      }
+      if (ny < -110 || u >= lifeMs || alpha <= 0.01) { s.remove(); return; }
       requestAnimationFrame(step);
     }
     requestAnimationFrame(step);
@@ -359,7 +413,7 @@
     maintainPopulation();
   }
 
-  // ===== shins animation only =====
+  // ===== Legs: shins only =====
   const KNEE_L = [23, 61];
   const KNEE_R = [41, 61];
   function rot(angleDeg, cx, cy){ return `rotate(${angleDeg.toFixed(2)} ${cx} ${cy})`; }
@@ -377,7 +431,7 @@
     m.parts.shinR.setAttribute("transform", rot(base - amp * s, ...KNEE_R));
   }
 
-  // ===== Naturalistic explosion on canvas (FIXED: no white overlay) =====
+  // ===== Explosion FX (no expanding ring) =====
   const fx = document.getElementById("fx");
   const ctx = fx.getContext("2d", { alpha:true });
 
@@ -396,41 +450,41 @@
   const explosions = [];
 
   function addExplosion(x,y){
-    const e = { x,y, t:0, life:1100, fire:[], smoke:[], sparks:[], shock:{ r:6, a:0.55 } };
+    const e = { x,y, t:0, life:1100, fire:[], smoke:[], sparks:[] };
 
-    const fireN = 110;
+    const fireN = 120;
     for (let i=0;i<fireN;i++){
       const ang = rand(0, Math.PI*2);
-      const sp  = rand(0.5, 4.6) * (0.65 + Math.random()*0.6);
+      const sp  = rand(0.6, 4.8) * (0.65 + Math.random()*0.6);
       const up  = rand(-1.2, -4.0);
       e.fire.push({
         x: x + rand(-3,3), y: y + rand(-3,3),
         vx: Math.cos(ang)*sp, vy: Math.sin(ang)*sp + up,
-        r: rand(10, 26), life: rand(320, 680), age:0,
+        r: rand(10, 28), life: rand(340, 720), age:0,
         wob: rand(0, 10),
       });
     }
 
-    const smokeN = 70;
+    const smokeN = 78;
     for (let i=0;i<smokeN;i++){
       const ang = rand(0, Math.PI*2);
-      const sp  = rand(0.2, 2.0);
+      const sp  = rand(0.2, 2.1);
       e.smoke.push({
         x: x + rand(-6,6), y: y + rand(-6,6),
         vx: Math.cos(ang)*sp, vy: Math.sin(ang)*sp + rand(-2.2, -0.6),
-        r: rand(18, 44), life: rand(700, 1200), age:0,
+        r: rand(18, 48), life: rand(740, 1280), age:0,
         dens: rand(0.10, 0.22), swirl: rand(0.004, 0.012),
       });
     }
 
-    const sparkN = 45;
+    const sparkN = 46;
     for (let i=0;i<sparkN;i++){
       const ang = rand(0, Math.PI*2);
-      const sp  = rand(3.0, 8.8);
+      const sp  = rand(3.0, 9.2);
       e.sparks.push({
         x,y,
         vx: Math.cos(ang)*sp, vy: Math.sin(ang)*sp + rand(-1.5, 0.5),
-        life: rand(220, 520), age:0,
+        life: rand(220, 560), age:0,
         w: rand(1.0, 1.8), l: rand(10, 22),
       });
     }
@@ -440,9 +494,6 @@
 
   function drawExplosion(e, dt){
     e.t += dt;
-
-    e.shock.r += dt * 0.28;
-    e.shock.a -= dt * 0.00075;
 
     // smoke
     ctx.save();
@@ -459,7 +510,7 @@
       s.x += s.vx * dt * 0.06;
       s.y += s.vy * dt * 0.06;
 
-      const r = s.r * (0.75 + u * 1.4);
+      const r = s.r * (0.75 + u * 1.45);
       const a = s.dens * (1 - u);
 
       const g = ctx.createRadialGradient(s.x - r*0.2, s.y - r*0.2, r*0.2, s.x, s.y, r);
@@ -490,7 +541,7 @@
       p.x += p.vx * dt * 0.08;
       p.y += p.vy * dt * 0.08;
 
-      const rr = p.r * (0.7 + (1-u)*0.9);
+      const rr = p.r * (0.7 + (1-u)*0.95);
       const a = (1 - u) * 0.65;
 
       const g = ctx.createRadialGradient(p.x - rr*0.25, p.y - rr*0.25, rr*0.18, p.x, p.y, rr);
@@ -533,18 +584,6 @@
     }
     ctx.restore();
 
-    // shock ring
-    if (e.shock.a > 0) {
-      ctx.save();
-      ctx.globalCompositeOperation = "source-over";
-      ctx.strokeStyle = `rgba(255,120,40,${Math.max(0, e.shock.a)})`;
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.arc(e.x, e.y, e.shock.r, 0, Math.PI*2);
-      ctx.stroke();
-      ctx.restore();
-    }
-
     return e.t >= e.life;
   }
 
@@ -553,10 +592,10 @@
     const dt = Math.min(32, Math.max(8, now - lastFx));
     lastFx = now;
 
-    // ✅ FIX: fade previous pixels by erasing them (keeps canvas transparent!)
+    // fade by erasing, keeps canvas transparent
     ctx.save();
     ctx.globalCompositeOperation = "destination-out";
-    ctx.fillStyle = "rgba(0,0,0,0.18)";  // higher -> faster fade
+    ctx.fillStyle = "rgba(0,0,0,0.18)";
     ctx.fillRect(0, 0, innerWidth, innerHeight);
     ctx.restore();
 
@@ -564,12 +603,91 @@
       const done = drawExplosion(explosions[i], dt);
       if (done) explosions.splice(i, 1);
     }
-
     requestAnimationFrame(fxLoop);
   }
   requestAnimationFrame(fxLoop);
 
+  // ===== Smart speech: panic + escalation, simple english warnings =====
+  const desktopWarnings = [
+    "please don't right-click",
+    "no right-click, please",
+    "please stop right-clicking",
+    "please don't do that",
+    "no explosions, please"
+  ];
+  const mobileWarnings = [
+    "please don't long-press",
+    "no long-press, please",
+    "please stop long-pressing",
+    "please don't do that",
+    "no explosions, please"
+  ];
+
+  let explosionCount = 0;
+  let heat = 0;
+  let lastHeatUpdate = performance.now();
+
+  function updateHeat(now){
+    const dt = now - lastHeatUpdate;
+    lastHeatUpdate = now;
+    const decay = Math.pow(0.5, dt / SPEECH.heatHalfLifeMs);
+    heat *= decay;
+  }
+
+  function addHeat(now){
+    updateHeat(now);
+    heat += SPEECH.heatBoostPerExplosion;
+  }
+
+  function heatLevel(now){
+    updateHeat(now);
+    return 1 - Math.exp(-heat * 0.55); // 0..1
+  }
+
+  function escalationLevel(){
+    if (explosionCount >= SPEECH.escalationStep3) return 3;
+    if (explosionCount >= SPEECH.escalationStep2) return 2;
+    if (explosionCount >= SPEECH.escalationStep1) return 1;
+    return 0;
+  }
+
+  function speechPool(){
+    return isTouch ? mobileWarnings : desktopWarnings;
+  }
+
+  let nextChatterAt = performance.now() + 4500 + Math.random()*4500;
+
+  function scheduleNextChatter(now){
+    const hl = heatLevel(now);
+    const gapBase = SPEECH.minGapMsBase;
+    const gap = gapBase * (1 - hl * (1 - SPEECH.gapPanicMultiplier));
+    nextChatterAt = now + gap + Math.random() * gap * 0.85;
+  }
+
+  function maybeChatter(now){
+    if (now < nextChatterAt) return;
+    scheduleNextChatter(now);
+
+    if (men.length === 0) return;
+
+    const hl = heatLevel(now);
+    const esc = escalationLevel();
+    const chance = clamp(0.22 + hl*0.55 + esc*0.06, 0, 0.90);
+    if (Math.random() > chance) return;
+
+    const m = men[(Math.random()*men.length)|0];
+    if (!m || !m.alive) return;
+    if (m.bubble.classList.contains("on")) return;
+
+    say(m, pick(speechPool()), SPEECH.durationMs);
+  }
+
+  // ===== Explosion logic =====
   function explode(x, y){
+    const now = performance.now();
+    explosionCount++;
+    addHeat(now);
+
     addExplosion(x, y);
 
     const snapshot = [...men];
@@ -579,37 +697,123 @@
       const dy = m.pos.y - y;
       if (Math.hypot(dx, dy) <= EXPLOSION_RADIUS) killMan(m);
     }
+
+    // immediate complain sometimes
+    if (men.length > 0) {
+      const hl = heatLevel(now);
+      const immediateChance = clamp(0.18 + hl*0.52, 0, 0.88);
+      if (Math.random() < immediateChance) {
+        const m = men[(Math.random()*men.length)|0];
+        if (m && m.alive && !m.bubble.classList.contains("on")) {
+          say(m, pick(speechPool()), 1200);
+        }
+      }
+    }
   }
 
+  // ===== INPUTS: Desktop + Mobile =====
+
+  // Desktop: right-click
   addEventListener("pointerdown", (e) => {
+    setTarget(e.clientX, e.clientY);
     if (e.button === 2) {
       e.preventDefault();
       explode(e.clientX, e.clientY);
     }
   }, { passive: false });
 
+  // Mobile: long-press OR two-finger tap
+  let holdTimer = null;
+  let touchStartX = 0, touchStartY = 0;
+  let holding = false;
+  let holdX = 0, holdY = 0;
+
+  function clearHold(){
+    if (holdTimer) { clearTimeout(holdTimer); holdTimer = null; }
+    holding = false;
+  }
+
+  function touchPoint(e){
+    const t = e.touches[0] || e.changedTouches[0];
+    return { x: t.clientX, y: t.clientY };
+  }
+
+  function twoFingerMid(e){
+    const a = e.touches[0], b = e.touches[1];
+    return { x: (a.clientX + b.clientX)/2, y: (a.clientY + b.clientY)/2 };
+  }
+
+  addEventListener("touchstart", (e) => {
+    if (!isTouch) return;
+    e.preventDefault();
+
+    if (e.touches.length === 2) {
+      clearHold();
+      const p = twoFingerMid(e);
+      setTarget(p.x, p.y);
+      explode(p.x, p.y);
+      return;
+    }
+
+    if (e.touches.length === 1) {
+      const p = touchPoint(e);
+      setTarget(p.x, p.y);
+
+      holding = true;
+      holdX = p.x; holdY = p.y;
+      touchStartX = p.x; touchStartY = p.y;
+
+      clearHold();
+      holdTimer = setTimeout(() => {
+        if (holding) explode(holdX, holdY);
+        clearHold();
+      }, TOUCH.holdMs);
+    }
+  }, { passive:false });
+
+  addEventListener("touchmove", (e) => {
+    if (!isTouch) return;
+    if (!holding || e.touches.length !== 1) return;
+
+    const p = touchPoint(e);
+    setTarget(p.x, p.y);
+
+    const dx = p.x - touchStartX;
+    const dy = p.y - touchStartY;
+    if (Math.hypot(dx, dy) > TOUCH.moveCancelPx) clearHold();
+  }, { passive:false });
+
+  addEventListener("touchend", () => { clearHold(); }, { passive:true });
+  addEventListener("touchcancel", () => { clearHold(); }, { passive:true });
+
+  // ===== init population =====
   function init(){
     for (let i = 0; i < DESIRED_MEN; i++) {
       const p = randomSpawnPoint();
       spawnMan(p.x, p.y);
     }
     maintainPopulation();
+    scheduleNextChatter(performance.now());
   }
   requestAnimationFrame(() => requestAnimationFrame(init));
 
+  // ===== main tick =====
   function clampDt(v){ return Math.max(8, Math.min(28, v)); }
 
   function tick(now){
     const dt = clampDt(now - (tick._last || now));
     tick._last = now;
 
-    if (!hasPointer) { target.x = innerWidth * 0.70; target.y = innerHeight * 0.44; }
+    if (!hasPointer) { target.x = innerWidth * 0.65; target.y = innerHeight * 0.45; }
+
+    maybeChatter(now);
 
     for (const m of men) {
       if (!m.alive) continue;
 
       const stopped = now < m.stopUntil;
 
+      // orbit target
       let tx = target.x;
       let ty = target.y;
       if (m.orbitAngle !== null) {
@@ -650,6 +854,7 @@
             m.orbitAngle = 0;
             reassignOrbitSlots();
           }
+
           const ox = target.x + Math.cos(m.orbitAngle) * m.orbitRadius;
           const oy = clamp(target.y + Math.sin(m.orbitAngle) * m.orbitRadius, HEADER_H, innerHeight);
 
@@ -658,10 +863,9 @@
           m.vel.x = 0; m.vel.y = 0;
           m.stopUntil = now + CFG.stopMs;
 
-          if (now - m.lastSpeak > CFG.speakCooldownMs) {
-            m.lastSpeak = now;
-            m.speakUntil = now + CFG.speakMs;
-            m.bubble.classList.add("on");
+          // show the "go away" phrase when they surround cursor
+          if (now - m.lastSpeak > SPEECH.cooldownPerManMs && !m.bubble.classList.contains("on")) {
+            say(m, CATCH_PHRASE, 1400);
           }
         }
       }
@@ -693,6 +897,7 @@
       m.pos.x = clamp(m.pos.x, 0, innerWidth);
       m.pos.y = clamp(m.pos.y, HEADER_H, innerHeight);
     }
+    resizeFx();
   });
 })();
 </script>
